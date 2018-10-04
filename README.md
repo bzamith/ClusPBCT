@@ -5,5 +5,6 @@
 ```
 python RunAll.py -i "Church"
 ```
-- DatasetsHierarchy: R scripts to create datasets regarding Path, Regular, Children and Depth approaches
+- DatasetsHierarchy: R scripts to create datasets regarding Path, Regular (Subtree), Children and Depth approaches
 - DatasetsNCBIWeb: Cerri's last suggestion, getting via Web query NCBI features
+- DatasetsNCBIWeb+NCBI: NCBI features combined with Path (Hierarchy) features
