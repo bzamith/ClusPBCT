@@ -396,12 +396,12 @@ class DatasetsGenerator:
 				header.pop()
 				break
 			if "@ATTRIBUTE" in line.upper():
-				if "numeric" in line.lower():
-					attr_names.append(line[len("@ATTRIBUTE")+1:len(line)-len("numeric")-1])
-				elif "{" in line:
-					attr_names.append(line[len("@ATTRIBUTE")+1:line.rfind('{')-1])
-				elif "class hierarchical" in line.lower():
-					labels_names = line[len("@ATTRIBUTE class hierarchical "):len(line)].split(",")
+				if "numeric" in line.lower() or "{" in line.lower():
+					spaces = [x.start() for x in re.finditer(' ', line)]
+					attr_names.append(line[spaces[0]+1:spaces[1]])
+				elif "class" in line.lower() and "hierarchical" in line.lower():
+					spaces = [x.start() for x in re.finditer(' ', line)]
+					labels_names = line[spaces[len(spaces)-1]+1:len(line)].split(",")
 					hier = Hierarchy(labels=labels_names)
 					labels_names = hier.cleanLabels()
 					header.pop()
@@ -575,7 +575,7 @@ class Tuner:
 	def __init__(self,file_name,g_path=True,g_depth=True,g_subtree=True,g_regular=True):
 		path = os.path.abspath(os.curdir)
 		if g_path:
-			command = "java -jar Clus_v5.jar "+"tune_"+file_name+"_path.s > output_tune_path.txt"
+			command = "java -jar Clus_v5.jar "+"tune_"+file_name+"_path.s > output_tune"+file_name+"_path.txt"
 			print("\t\t> Tuned path")
 			subprocess.call(command, shell=True)
 			os.remove("tune_"+file_name+"_path.out")
@@ -586,7 +586,7 @@ class Tuner:
 			self.execute_all(file_name,"PATH")
 			print("\t\t> Executed Clus for path")
 		if g_depth:
-			command = "java -jar Clus_v5.jar "+"tune_"+file_name+"_depth.s > output_tune_depth.txt"
+			command = "java -jar Clus_v5.jar "+"tune_"+file_name+"_depth.s > output_tune"+file_name+"_depth.txt"
 			print("\t\t> Tuned depth")
 			subprocess.call(command, shell=True)
 			os.remove("tune_"+file_name+"_depth.out")
@@ -597,7 +597,7 @@ class Tuner:
 			self.execute_all(file_name,"DEPTH")
 			print("\t\t> Executed Clus for depth")
 		if g_subtree:
-			command = "java -jar Clus_v5.jar "+"tune_"+file_name+"_subtree.s > output_tune_subtree.txt"
+			command = "java -jar Clus_v5.jar "+"tune_"+file_name+"_subtree.s > output_tune"+file_name+"_subtree.txt"
 			print("\t\t> Tuned subtree")
 			subprocess.call(command, shell=True)
 			os.remove("tune_"+file_name+"_subtree.out")
@@ -608,7 +608,7 @@ class Tuner:
 			self.execute_all(file_name,"SUBTREE")
 			print("\t\t> Executed Clus for subtree")
 		if g_regular:
-			command = "java -jar Clus_v5.jar "+"tune_"+file_name+"_regular.s > output_tune_regular.txt"
+			command = "java -jar Clus_v5.jar "+"tune_"+file_name+"_regular.s > output_tune"+file_name+"_regular.txt"
 			print("\t\t> Tuned regular")
 			subprocess.call(command, shell=True)
 			os.remove("tune_"+file_name+"_regular.out")
@@ -619,8 +619,8 @@ class Tuner:
 			self.execute_all(file_name,"REGULAR")
 			print("\t\t> Executed Clus for regular")
 	def read_tuned_out_values(self,file_name,data_type):
-		lines = open("output_tune_"+data_type.lower()+".txt",'r').readlines()
-		os.remove("output_tune_"+data_type.lower()+".txt")
+		lines = open("output_tune"+file_name+"_"+data_type.lower()+".txt",'r').readlines()
+		os.remove("output_tune"+file_name+"_"+data_type.lower()+".txt")
 		pos = 0
 		for i in range(0,len(lines)):
 			if(lines[i].rstrip()==file_name+"_intD2_"+data_type.lower()+"_train.arff"):
