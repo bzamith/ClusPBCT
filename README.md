@@ -1,7 +1,7 @@
 # ClusPBCT
 
 - Clus: Clus PBCT (without jar)
-- DatasetsGenerator.py: Generate datasets (path, depth, subtree and regular)
+- DatasetsGenerator.py: Generates datasets (path, depth, subtree and regular), creates Settings Files, tune and executes Clus_v5.jar
 ```
 python3 DatasetsGenerator.py -i pheno_yeast_FUN
 ```
