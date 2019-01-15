@@ -4,7 +4,13 @@
 - DatasetsGenerator.py: Generates datasets (path, depth, subtree and regular), creates Settings Files, tune and executes Clus_v5.jar
 ```
 python3 DatasetsGenerator.py -i pheno_yeast_FUN
+
+execute in dir with Clus_v5.jar and folder Datasets/
+folder Datasets ex:
+Datasets/pheno_yeast_FUN/pheno_yeast_FUN_train.arff
 ```
+
+
 - Datasets: Data used
 
 
