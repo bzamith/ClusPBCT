@@ -346,6 +346,18 @@ class DatasetsGenerator:
 			if h_train:
 				self.write_arff(self.trainvalid,"intD1",file_name+"_intD1_trainvalid.arff")
 				print("\t\t> Wrote intD1_trainvalid")
+				if g_path:
+					self.write_arff(self.trainvalid,"path",file_name+"_intD2_path_trainvalid.arff")
+					print("\t\t> Wrote intD2_path_trainvalid")
+				if g_depth:
+					self.write_arff(self.trainvalid,"depth",file_name+"_intD2_depth_trainvalid.arff")
+					print("\t\t> Wrote intD2_depth_trainvalid")
+				if g_subtree:
+					self.write_arff(self.trainvalid,"subtree",file_name+"_intD2_subtree_trainvalid.arff")
+					print("\t\t> Wrote intD2_subtree_trainvalid")
+				if g_regular:
+					self.write_arff(self.trainvalid,"path",file_name+"_intD2_regular_trainvalid.arff")
+					print("\t\t> Wrote intD2_regular_trainvalid")
 		if h_test:
 			self.write_arff(self.test,"intD1",file_name+"_intD1_test.arff")
 			print("\t\t> Wrote intD1_test")
@@ -361,6 +373,7 @@ class DatasetsGenerator:
 			self.extract_dataset_info(file,self.valid)
 			print("\t\t> Read valid dataset and created intD1_valid")
 			if(h_train):
+				self.trainvalid.set_header(self.train.get_header())
 				self.trainvalid.set_intD1(self.train.get_intD1().append(self.valid.get_intD1(), ignore_index = True))
 				self.trainvalid.set_intD1_attr_names(self.train.get_intD1_attr_names())
 				self.trainvalid.set_intD1_labels_names(self.train.get_intD1_labels_names())
@@ -636,14 +649,21 @@ class Tuner:
 	def create_settings_file(self,file_name,data_type):
 		lines = open("tune_"+file_name+"_"+data_type.lower()+".s",'r').readlines()
 		os.remove("tune_"+file_name+"_"+data_type.lower()+".s")
-		pos = 0
+		posFile = 0
+		posFTest = 0
 		for i in range(0,len(lines)):
 			if(lines[i].startswith("FTest = ")):
-				pos = i
+				posFTest = i
 				break
-		if not pos == 0:
+			if(lines[i].startswith("File = ")):
+				posFile = i
+		if not posFile == 0 and not posFTest == 0:
+			lines[posFile] = lines[posFile][0:re.search("train",lines[posFile]).end()]+"valid.arff\n"
+			lines[posFile+1] = lines[posFile+1][0:re.search("train",lines[posFile+1]).end()]+"valid.arff\n"
+			lines[posFile+2] = "%" + lines[posFile+2]
+			lines[posFile+3] = lines[posFile+3][1:len(lines[posFile+3])]
 			for i in range(0,len(self.tuned_values)):
-				lines[pos] = "FTest = "+str(self.tuned_values[i])+"\n"
+				lines[posFTest] = "FTest = "+str(self.tuned_values[i])+"\n"
 				with open("run_"+file_name+"_"+data_type.lower()+"_"+self.tuned[i].lower()+".s", 'w') as output:
 					for j in range(0,len(lines)):
 						output.write(lines[j])
@@ -652,9 +672,9 @@ class Tuner:
 			sys.exit()
 	def execute_all(self,file_name,data_type):
 		for i in range(0,len(self.tuned_values)):
-			command = "java -jar Clus_v5.jar run_"+file_name+"_"+data_type.lower()+"_"+self.tuned[i].lower()+".s > temp.txt"
+			command = "java -jar Clus_v5.jar run_"+file_name+"_"+data_type.lower()+"_"+self.tuned[i].lower()+".s > temp_"+file_name+".txt"
 			subprocess.call(command, shell=True)
-			os.remove("temp.txt")
+			os.remove("temp_"+file_name+".txt")
 			os.remove("run_"+file_name+"_"+data_type.lower()+"_"+self.tuned[i].lower()+".s")
 			lines = open("run_"+file_name+"_"+data_type.lower()+"_"+self.tuned[i].lower()+".out",'r').readlines()
 			os.remove("run_"+file_name+"_"+data_type.lower()+"_"+self.tuned[i].lower()+".out")
@@ -685,8 +705,6 @@ class FolderOrganizer:
 			os.makedirs(file_path+"/Output/"+file_name+"/Measures")
 		if not os.path.exists(file_path+"/Output/"+file_name+"/IntDatasets"):
 			os.makedirs(file_path+"/Output/"+file_name+"/IntDatasets")
-		if not os.path.exists(file_path+"/Output/"+file_name+"/OrgDatasets"):
-			os.makedirs(file_path+"/Output/"+file_name+"/OrgDatasets")
 
 		for file in files:
 			find = file.find(file_name)
@@ -698,9 +716,6 @@ class FolderOrganizer:
 					find = file.find("intD")
 					if not find == -1:
 						os.rename(file_path+"/"+file, file_path+"/Output/"+file_name+"/IntDatasets/"+file)
-					else:
-						os.rename(file_path+"/"+file, file_path+"/Output/"+file_name+"/OrgDatasets/"+file)
-
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Please give the dataset file name', add_help=True)
@@ -709,7 +724,8 @@ if __name__ == '__main__':
 	print("\n\n")
 	print("> Beginning Execution for Dataset: "+args.inputFile)
 	print("\t> DatasetsGenerator...")
-	DatasetsGenerator(file_name = args.inputFile)
+	path=os.path.abspath(os.curdir)+"/Datasets/"+args.inputFile
+	DatasetsGenerator(file_name = args.inputFile, file_path=path)
 	print("\t> Tuner...")
 	Tuner(file_name = args.inputFile)
 	print("\t> Organizer...")
