@@ -1,0 +1,5 @@
+library("scmamp")
+library("ggplot2")
+library("Rgraphviz")
+dados = read.csv("AUPRC.csv", header = TRUE, sep = ",")
+plotCD (dados, alpha=0.05, cex=1.25, decreasing = FALSE)
