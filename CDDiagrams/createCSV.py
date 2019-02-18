@@ -17,9 +17,9 @@ for value in values:
 		depth.append(value)
 	elif count == 4:
 		hmc.append(value)
-	else:
-		count = -1
 	count = count + 1
+	if count == 5:
+		count = 0
 
 with open("AUPRC.csv", 'w') as output:
 	output.write("Path,Subtree,Children,Depth,HMC\n")
