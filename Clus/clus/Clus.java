@@ -693,8 +693,8 @@ public class Clus implements CMDLineArgsProvider {
 					if (err != null)
 						err.addExample(tuple, pred);
 					ModelProcessorCollection coll = mi.getModelProcessors(type);
-					if (coll != null && !m_Sett.isPBCT()) {
-						if (coll.needsModelUpdate()) {
+					if (coll != null) {
+						if (coll.needsModelUpdate() && !m_Sett.isPBCT()) {
 							model.applyModelProcessors(tuple, coll);
 							coll.modelDone();
 						}
