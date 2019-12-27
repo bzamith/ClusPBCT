@@ -128,7 +128,7 @@ public class LookAheadPBCT extends ClusInductionAlgorithm {
                 attrs = getDescriptiveAttributes(node,SECOND_DATA);
                 double bestVertical = Double.NEGATIVE_INFINITY;
                 ClusAttrType bestAttrVertical = null;
-                if(!(node.hasParent() && node.getParent().m_TypeSplit == VERTICAL_SPLIT)){
+                //if(!(node.hasParent() && node.getParent().m_TypeSplit == VERTICAL_SPLIT)){
                     for (int i = 0; i < attrs.length; i++) {
                             ClusAttrType at = attrs[i];
                             node.getSecondFindBestTest().m_BestTest.resetBestTest();
@@ -141,7 +141,7 @@ public class LookAheadPBCT extends ClusInductionAlgorithm {
                                 }
                             }
                     }
-                }
+                //}
                 if(bestAttrVertical!=null){
                     node.getSecondFindBestTest().m_BestTest.resetBestTest();
                     node.getSecondFindBestTest().findNumeric((NumericAttrType)bestAttrVertical, node.getSecondData());
