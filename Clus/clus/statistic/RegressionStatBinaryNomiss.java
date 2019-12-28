@@ -22,7 +22,6 @@
 
 package clus.statistic;
 
-import clus.algo.tdidt.ClusNodePBCT;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.*;
@@ -33,9 +32,6 @@ import jeans.util.StringUtils;
 
 import org.apache.commons.math.MathException;
 import org.apache.commons.math.distribution.*;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 import clus.main.ClusStatManager;
 import clus.main.Settings;
@@ -195,67 +191,4 @@ public class RegressionStatBinaryNomiss extends RegressionStatBase {
 		}
 		return buf.toString();
 	}
-
-	@Override
-	public Element getPredictElement(Document doc) {		
-		Element stats = doc.createElement("RegressionStatBinaryNomiss");
-		NumberFormat fr = ClusFormat.SIX_AFTER_DOT;
-		Attr examples = doc.createAttribute("examples");
-		examples.setValue(fr.format(m_SumWeight));
-		stats.setAttributeNode(examples);		
-		for (int i = 0; i < m_NbAttrs; i++) {			
-			Element attr = doc.createElement("Target");
-			Attr name = doc.createAttribute("name");			
-			name.setValue(m_Attrs[i].getName());
-			attr.setAttributeNode(name);			
-			attr.setTextContent(fr.format(getMean(i)));			
-			stats.appendChild(attr);
-		}		
-		return stats;
-	}
-
-    @Override
-    public double getSumValues(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double getSumWeights(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double getSumSqValues(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void includeElements(ClusNodePBCT node) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void includeElements(ClusNodePBCT node, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public boolean getFilled(int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(double value, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(ClusNodePBCT node) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(ClusNodePBCT node, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
 }

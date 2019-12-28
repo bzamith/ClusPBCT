@@ -31,6 +31,8 @@ import clus.data.rows.*;
 import clus.data.cols.*;
 import clus.data.cols.attribute.*;
 
+import clus.algo.kNN.BasicDistance;
+
 public abstract class ClusAttrType implements Serializable, Comparable {
 
 	public final static long serialVersionUID = Settings.SERIAL_VERSION_ID;
@@ -256,6 +258,25 @@ public abstract class ClusAttrType implements Serializable, Comparable {
 	public void writeARFFType(PrintWriter wrt) throws ClusException {
 		throw new ClusException("Type: "+getClass().getName()+" can't be written to a .arff file");
 	}
+
+//--------------------------------New-------------------------------------
+
+	private BasicDistance $dist;
+
+	/**
+	 * Returns the distance between the 2 given tuples for this attribute.
+	 */
+	public double getBasicDistance(DataTuple t1,DataTuple t2){
+		return $dist.getDistance(this,t1,t2);
+	}
+
+	/**
+	 * Sets the BasicDistance for this AttributeType
+	 */
+	public void setBasicDistance(BasicDistance dist){
+		$dist = dist;
+	}
+
 
 	/**
 	 * Compares to ClusAttrTypes based on index, allowing them to be sorted.

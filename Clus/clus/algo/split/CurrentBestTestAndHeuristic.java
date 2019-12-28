@@ -106,7 +106,7 @@ public class CurrentBestTestAndHeuristic {
 	}
 
 	public final void initTestSelector(ClusStatistic totstat, RowData subset) {
-                initTestSelector(totstat);
+		initTestSelector(totstat);
 		// Attach data set to heuristics and statistics
 		for (int i = 0; i < m_TestStat.length; i++) {
 			m_TestStat[i].setSDataSize(subset.getNbRows());
@@ -345,7 +345,4 @@ public class CurrentBestTestAndHeuristic {
 		for (int i = 0; i < nbstat; i++)
 			m_TestStat[i].setSDataSize(nbex);
 	}
-        
-        
-        
 }

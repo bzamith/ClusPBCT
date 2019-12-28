@@ -22,7 +22,6 @@
 
 package clus.statistic;
 
-import clus.algo.tdidt.ClusNodePBCT;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.*;
@@ -34,9 +33,6 @@ import jeans.util.StringUtils;
 
 import org.apache.commons.math.MathException;
 import org.apache.commons.math.distribution.*;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 import clus.main.ClusStatManager;
 import clus.main.Settings;
@@ -55,11 +51,6 @@ public class RegressionStat extends RegressionStatBase {
 	public double[] m_SumWeights;
 	public double[] m_SumSqValues;
 	public RegressionStat m_Training;
-        
-        // ********************************
-        //PBCT
-        public boolean[] m_Filled;
-        // ********************************
 
 	public RegressionStat(NumericAttrType[] attrs) {
 		this(attrs, false);
@@ -73,18 +64,6 @@ public class RegressionStat extends RegressionStatBase {
 			m_SumSqValues = new double[m_NbAttrs];
 		}
 	}
-
-        public RegressionStat(NumericAttrType[] attrs, boolean onlymean, boolean again) {
-            super(attrs, onlymean);
-            m_SumValues = new double[m_NbAttrs];
-            m_SumWeights = new double[m_NbAttrs];
-            m_SumSqValues = new double[m_NbAttrs];
-            m_Filled = new boolean[m_NbAttrs];
-            for(int i=0; i<m_NbAttrs; i++){
-                m_Filled[i] = false;
-            }
-        }
-
 
 	public void setTrainingStat(ClusStatistic train) {
 		m_Training = (RegressionStat)train;
@@ -273,7 +252,6 @@ public class RegressionStat extends RegressionStatBase {
 	public String getString(StatisticPrintInfo info) {
 		NumberFormat fr = ClusFormat.SIX_AFTER_DOT;
 		StringBuffer buf = new StringBuffer();
-		
 		buf.append("[");
 		for (int i = 0; i < m_NbAttrs; i++) {
 			if (i != 0) buf.append(",");
@@ -327,94 +305,5 @@ public class RegressionStat extends RegressionStatBase {
 		}
 		return result;
 	}
-
-	@Override
-	public Element getPredictElement(Document doc) {
-		Element stats = doc.createElement("RegressionStat");
-		NumberFormat fr = ClusFormat.SIX_AFTER_DOT;
-		Attr examples = doc.createAttribute("examples");
-		examples.setValue(fr.format(m_SumWeight));
-		
-		stats.setAttributeNode(examples);
-		for (int i = 0; i < m_NbAttrs; i++) {			
-			Element attr = doc.createElement("Target");
-			Attr name = doc.createAttribute("name");
-			name.setValue(m_Attrs[i].getName());
-			attr.setAttributeNode(name);
-			
-			double tot = getSumWeights(i);
-			if (tot == 0) attr.setTextContent("?");
-			else attr.setTextContent(fr.format(getSumValues(i)/tot));			
-			
-			stats.appendChild(attr);
-		}
-		return stats;
-	}
-        
-        // ********************************
-        //PBCT 
-        public void includeElements(ClusNodePBCT node) {
-                RegressionStat or = (RegressionStat)node.getNodeHorizontal().getTargetStat();
-                m_SumWeight += or.m_SumWeight;
-		for (int i = 0; i < or.getNbAttributes(); i++) {
-                        int pos = node.getGlobalIndexes()[i];
-			m_SumWeights[pos] = or.m_SumWeights[i];
-			m_SumValues[pos] = or.m_SumValues[i];
-			m_SumSqValues[pos] = or.m_SumSqValues[i];
-                        m_Filled[pos]=true;
-		}
-	}
-        
-        public boolean getFilled(int index){
-            return m_Filled[index];
-        }
-        
-        public double getSumSqValues(int i) {
-            return m_SumSqValues[i];
-        }
-        
-        public int getArrayIndex(int[] arr,int value) {
-            int k=-1;
-            for(int i=0;i<arr.length;i++){
-
-                if(arr[i]==value){
-                    k=i;
-                    break;
-                }
-            }
-            return k;
-        }   
-        
-        public void calcMean(double value, int index) {
-		// If divider zero, return zero
-		m_Means[index] = value;
-                m_Filled[index]=true;
-	}
-        
-        public void calcMean(ClusNodePBCT node) {
-            RegressionStat or = (RegressionStat)node.getNodeHorizontal().getTargetStat();
-            for (int i = 0; i < or.getNbAttributes(); i++) {
-                int pos = node.getGlobalIndexes()[i];
-                m_Means[pos] = m_SumWeights[pos] != 0.0 ? m_SumValues[pos] / m_SumWeights[pos] : 0.0;
-            }
-        }
-        
-        
-        public void calcMean(ClusNodePBCT node, int index) {
-            m_Means[index] = m_SumWeights[index] != 0.0 ? m_SumValues[index] / m_SumWeights[index] : 0.0;
-            
-        }
-
-        public void includeElements(ClusNodePBCT node, int index) {
-                RegressionStat or = (RegressionStat)node.getNodeHorizontal().getTargetStat();
-                //m_SumWeight += or.m_SumWeight;
-		int pos = getArrayIndex(node.getGlobalIndexes(),index);
-                m_SumWeights[index] = or.m_SumWeights[pos];
-                m_SumValues[index] = or.m_SumValues[pos];
-                m_SumSqValues[index] = or.m_SumSqValues[pos];
-                m_Filled[index]=true;
-
-	}
-        // ********************************
-        
+	
 }

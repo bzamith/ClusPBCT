@@ -23,6 +23,7 @@
 package clus.model;
 
 import jeans.util.*;
+
 import clus.main.ClusRun;
 import clus.statistic.*;
 import clus.data.rows.*;
@@ -30,9 +31,6 @@ import clus.util.*;
 
 import java.io.*;
 import java.util.*;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 public interface ClusModel {
 
@@ -69,8 +67,6 @@ public interface ClusModel {
 	public void printModelToQuery(PrintWriter wrt, ClusRun cr, int starttree, int startitem, boolean exhaustive);
 
 	public void printModelToPythonScript(PrintWriter wrt);
-	
-	public Element printModelToXML(Document doc, StatisticPrintInfo info, RowData examples);
 
 	public void attachModel(HashMap table) throws ClusException;
 
@@ -79,6 +75,4 @@ public interface ClusModel {
 	public ClusModel prune(int prunetype);
 
 	public int getID();
-
-    public ClusStatistic predictWeighted(DataTuple tuple, RowData m_SecondData);
 }

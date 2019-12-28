@@ -296,7 +296,7 @@ public class ClusErrorList implements Serializable {
 	public void showError(ClusModelInfoList models, int type, String bName, PrintWriter out) throws IOException {
 //	public void showError(ClusModelInfoList models, int type, PrintWriter out) throws IOException {
 		int nb = m_Error.size();
-		ClusModelInfo definf = models.getModelInfo(ClusModel.ORIGINAL);
+		ClusModelInfo definf = models.getModelInfo(ClusModel.DEFAULT);
 		ClusErrorList defpar = definf.getError(type);
 		out.println("Number of examples: "+defpar.getNbExamples());
 		int nb_models = models.getNbModels();

@@ -768,41 +768,4 @@ public class RowData extends ClusData implements MSortable, Serializable {
 		}
 		return new RowData(res, getSchema());
 	}
-        
-        
-        // ********************************
-        //PBCT: Get indexes of split
-        public final int[] getIndexes(NodeTest test, int branch) {
-		int nb = 0;
-                for (int i = 0; i < m_NbRows; i++) {
-			int pred = test.predictWeighted(m_Data[i]);
-			if (pred == branch || pred == NodeTest.UNKNOWN) nb++;
-		}
-                int[] indexes = new int[nb];
-                nb=0;
-		for (int i = 0; i < m_NbRows; i++) {
-			int pred = test.predictWeighted(m_Data[i]);
-			if (pred == branch || pred == NodeTest.UNKNOWN) {
-				indexes[nb]=i;
-                                nb++;
-                        }
-		}
-		return indexes;
-	}
-        
-        public DataTuple[] getData(){
-            return m_Data;
-        }
-        
-        // ********************************
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
 }

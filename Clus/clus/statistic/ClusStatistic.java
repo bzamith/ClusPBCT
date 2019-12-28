@@ -22,19 +22,17 @@
 
 package clus.statistic;
 
-import clus.algo.tdidt.ClusNodePBCT;
 import clus.main.*;
 import clus.util.*;
 import clus.data.cols.*;
 import clus.data.rows.*;
 import clus.data.type.*;
 import clus.data.attweights.*;
+import clus.ext.beamsearch.ClusBeam;
+import clus.ext.timeseries.TimeSeries;
 
 import java.io.*;
 import java.util.ArrayList;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 /**
  * Statistics about the data set. Target attributes, nominal or real attributes, weights etc.
@@ -129,8 +127,6 @@ public abstract class ClusStatistic implements Serializable {
 	public String getPredictString() {
 		return getString();
 	}
-	
-	public abstract Element getPredictElement(Document doc);
 
 	public abstract void reset();
 
@@ -162,6 +158,11 @@ public abstract class ClusStatistic implements Serializable {
 
 	public double[] getNumericPred() {
 		System.err.println(getClass().getName()+": getNumericPred(): Not yet implemented");
+		return null;
+	}
+
+	public TimeSeries getTimeSeriesPred() {
+		System.err.println(getClass().getName()+": getTimeSeriesPred(): Not yet implemented");
 		return null;
 	}
 
@@ -349,24 +350,6 @@ public abstract class ClusStatistic implements Serializable {
 		return "Unknown Distance";
 	}
 	
-        // ********************************
-        //PBCT  
-        public abstract double getSumValues(int i);
-
-	public abstract double getSumWeights(int i);
-        
-        public abstract double getSumSqValues(int i);
-                
-        public abstract void includeElements(ClusNodePBCT node);
-        
-        public abstract void includeElements(ClusNodePBCT node, int index);
-                
-        public abstract boolean getFilled(int index);
-     
-        public abstract void calcMean(double value, int index);
-        
-        public abstract void calcMean(ClusNodePBCT node);
-        
-        public abstract void calcMean(ClusNodePBCT node, int index);
-        // ********************************
+	public void setBeam(ClusBeam beam){
+	}
 }

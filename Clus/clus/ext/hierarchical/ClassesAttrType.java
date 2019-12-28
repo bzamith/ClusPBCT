@@ -58,8 +58,7 @@ public class ClassesAttrType extends ClusAttrType {
 	public ClassesAttrType(String name, String atype) {
 		super(name);
 		String classes = atype.substring("HIERARCHICAL".length()).trim();
-		if (classes.length() != 0) // CV added check so that m_Labels would remain null when reading hierarchy from a definition file
-			m_Labels = classes.split("\\s*\\,\\s*");
+		m_Labels = classes.split("\\s*\\,\\s*");
 		m_Hier = new ClassHierarchy(this);
 	}
 

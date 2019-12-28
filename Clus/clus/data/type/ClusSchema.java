@@ -22,8 +22,6 @@
 
 package clus.data.type;
 
-import static clus.Clus.FIRST_DATA;
-import static clus.Clus.SECOND_DATA;
 import jeans.util.*;
 
 import java.io.*;
@@ -53,6 +51,7 @@ public class ClusSchema implements Serializable {
 	protected ClusAttrType[][] m_AllAttrUse;
 	protected NominalAttrType[][] m_NominalAttrUse;
 	protected NumericAttrType[][] m_NumericAttrUse;
+	protected TimeSeriesAttrType[][] m_TimeSeriesAttrUse;
 	protected ClusAttrType[] m_NonSparse;
 	protected Settings m_Settings;
 	protected IndexAttrType m_TSAttr;
@@ -62,8 +61,8 @@ public class ClusSchema implements Serializable {
 	protected IntervalCollection m_Descriptive = IntervalCollection.EMPTY;
 	protected IntervalCollection m_Key = IntervalCollection.EMPTY;
 	protected int[] m_NbVt;
-        
-        public ClusSchema(String name) {
+
+	public ClusSchema(String name) {
 		m_Relation = name;
 	}
 
@@ -72,44 +71,21 @@ public class ClusSchema implements Serializable {
 		addFromString(descr);
 	}
 
-	// ********************************
-        //PBCT: To indicate if it is a first data schema or a second data schema
-        protected int m_TypeData;
-        
-        public void setTypeData(int type){
-            m_TypeData = type;
-        }
-        // *******************************
-        
-        public void setSettings(Settings sett) {
+	public void setSettings(Settings sett) {
 		m_Settings = sett;
 	}
 
-        // ********************************
-        //PBCT: Adapt to handle both schemas
 	public void initializeSettings(Settings sett) throws ClusException, IOException {
-            setSettings(sett);
-            setTestSet(-1); /* Support ID for XVAL attribute later on? */
-            if(m_TypeData == FIRST_DATA){
-                    setTarget(new IntervalCollection(sett.getTarget()));
-                    setDisabled(new IntervalCollection(sett.getDisabled()));
-                    setClustering(new IntervalCollection(sett.getClustering()));
-                    setDescriptive(new IntervalCollection(sett.getDescriptive()));
-                    setKey(new IntervalCollection(sett.getKey()));
-                    updateAttributeUse();
-                    addIndices(ClusSchema.ROWS);
-            }
-            else if(m_TypeData == SECOND_DATA){
-                    setTarget(new IntervalCollection(sett.getSecondTarget()));
-                    setDisabled(new IntervalCollection(sett.getSecondDisabled()));
-                    setClustering(new IntervalCollection(sett.getSecondTarget()));
-                    setDescriptive(new IntervalCollection(sett.getSecondDescriptive()));
-                    setKey(new IntervalCollection(sett.getSecondKey()));
-                    updateAttributeUse();
-                    addIndices(ClusSchema.ROWS);
-            }
+		setSettings(sett);
+		setTestSet(-1); /* Support ID for XVAL attribute later on? */
+		setTarget(new IntervalCollection(sett.getTarget()));
+		setDisabled(new IntervalCollection(sett.getDisabled()));
+		setClustering(new IntervalCollection(sett.getClustering()));
+		setDescriptive(new IntervalCollection(sett.getDescriptive()));
+		setKey(new IntervalCollection(sett.getKey()));
+		updateAttributeUse();
+		addIndices(ClusSchema.ROWS);
 	}
-        // ********************************
 
 	public void initialize() throws ClusException, IOException {
 		updateAttributeUse();
@@ -167,6 +143,9 @@ public class ClusSchema implements Serializable {
 		return m_AllAttrUse[attruse].length;
 	}
 
+	public TimeSeriesAttrType[] getTimeSeriesAttrUse(int attruse) {
+		return m_TimeSeriesAttrUse[attruse];
+	}
 
 	public final NominalAttrType[] getNominalAttrUse(int attruse) {
 		return m_NominalAttrUse[attruse];
@@ -640,6 +619,13 @@ public class ClusSchema implements Serializable {
 		}
 		return res;
 	}
+	public static TimeSeriesAttrType[] vectorToTimeSeriesAttrArray(ArrayList list){
+		TimeSeriesAttrType[] res = new TimeSeriesAttrType[list.size()];
+		for (int i = 0; i < list.size(); i++) {
+			res[i] = (TimeSeriesAttrType)list.get(i);
+		}
+		return res;
+	}
 
 	public ArrayList collectAttributes(int attruse, int attrtype) {
 		ArrayList result = new ArrayList();
@@ -763,10 +749,12 @@ public class ClusSchema implements Serializable {
 		m_AllAttrUse = new ClusAttrType[ClusAttrType.NB_ATTR_USE][];
 		m_NominalAttrUse = new NominalAttrType[ClusAttrType.NB_ATTR_USE][];
 		m_NumericAttrUse = new NumericAttrType[ClusAttrType.NB_ATTR_USE][];
+		m_TimeSeriesAttrUse = new TimeSeriesAttrType[ClusAttrType.NB_ATTR_USE][];
 		for (int attruse = ClusAttrType.ATTR_USE_ALL; attruse <= ClusAttrType.ATTR_USE_KEY; attruse++) {
 			m_AllAttrUse[attruse] = vectorToAttrArray(collectAttributes(attruse, ClusAttrType.THIS_TYPE));
 			m_NominalAttrUse[attruse] = vectorToNominalAttrArray(collectAttributes(attruse, NominalAttrType.THIS_TYPE));
 			m_NumericAttrUse[attruse] = vectorToNumericAttrArray(collectAttributes(attruse, NumericAttrType.THIS_TYPE));
+			m_TimeSeriesAttrUse[attruse] = vectorToTimeSeriesAttrArray(collectAttributes(attruse, TimeSeriesAttrType.THIS_TYPE));
 		}
 	}
 
@@ -806,80 +794,4 @@ public class ClusSchema implements Serializable {
 		}
 		return buf.toString();
 	}
-        
-        
-        // ********************************
-        // PBCT: Used to remove columns of dataset
-        public final void removeAttrType(int index) {
-                m_Attr.remove(index);
-                if(index!=m_NbAttrs-1){
-                    for(int i=index; i<m_NbAttrs-1; i++) {
-                        getAttrType(i).setIndex(i);
-                    }
-                }
-                m_NbAttrs--;
-        }
-        
-        public void newInitialize() throws ClusException, IOException {
-		newUpdateAttributeUse();
-		addIndices(ClusSchema.ROWS);
-	}
-
-        public final void newUpdateAttributeUse() throws ClusException, IOException {
-		boolean[] keys = new boolean[getNbAttributes()+1];
-		for (int i = 0; i < getNbAttributes(); i++) {
-			ClusAttrType type = getAttrType(i);
-			if (type.getStatus() == ClusAttrType.STATUS_KEY) keys[type.getIndex()+1] = true;
-		}
-		m_Key.add(keys);
-		m_Disabled.subtract(m_Target);
-		if(m_Descriptive.isDefault()) {
-			m_Descriptive.clear();
-			m_Descriptive.addInterval(1,getNbAttributes());
-			m_Descriptive.subtract(m_Target);
-			m_Descriptive.subtract(m_Disabled);
-			m_Descriptive.subtract(m_Key);
-                }
-                
-		m_Disabled.subtract(m_Key);
-		checkRange(m_Key, "key");
-		checkRange(m_Disabled, "disabled");
-		checkRange(m_Target, "target");
-		checkRange(m_Clustering, "clustering");
-		checkRange(m_Descriptive, "descriptive");
-		setStatusAll(ClusAttrType.STATUS_NORMAL);
-		setStatus(m_Disabled, ClusAttrType.STATUS_DISABLED, true);
-		setStatus(m_Target, ClusAttrType.STATUS_TARGET, true);
-		setStatus(m_Clustering, ClusAttrType.STATUS_CLUSTER_NO_TARGET, false);
-		setStatus(m_Key, ClusAttrType.STATUS_KEY, true);
-		
-	}
-        
-        public void copyFrom(ClusSchema schema) throws ClusException, IOException  {
-            this.setSettings(schema.m_Settings);
-            this.setTestSet(-1);
-            this.setTarget(schema.m_Target);
-            this.setDescriptive(schema.m_Descriptive);   
-            this.setDisabled(schema.m_Disabled);
-            this.setClustering(schema.m_Clustering);
-            this.setKey(schema.m_Key);
-            this.updateAttributeUse();
-            this.addIndices(ClusSchema.ROWS);
-        }
-        
-        
-        // ********************************
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
 }

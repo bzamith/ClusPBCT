@@ -25,14 +25,11 @@
  */
 package clus.statistic;
 
-import clus.algo.tdidt.ClusNodePBCT;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.io.*;
 
 import org.apache.commons.math.MathException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 import clus.data.attweights.*;
 import clus.data.rows.DataTuple;
@@ -639,16 +636,6 @@ public class CombStat extends ClusStatistic {
 		buf.append("]");
 		return buf.toString();
 	}
-	
-	@Override
-	public Element getPredictElement(Document doc) {
-		Element comb = doc.createElement("CombStat");
-		Element classStat = m_ClassStat.getPredictElement(doc);
-		Element regStat = m_RegStat.getPredictElement(doc);
-		comb.appendChild(classStat);
-		comb.appendChild(regStat);
-		return comb;
-	}
 
 	public void addPredictWriterSchema(String prefix, ClusSchema schema) {
 		m_ClassStat.addPredictWriterSchema(prefix, schema);
@@ -771,48 +758,4 @@ public class CombStat extends ClusStatistic {
 		System.err.println(getClass().getName() + "vote (): Not implemented");
 	}
 
-    @Override
-    public double getSumValues(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double getSumWeights(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double getSumSqValues(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void includeElements(ClusNodePBCT node) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void includeElements(ClusNodePBCT node, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public boolean getFilled(int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(double value, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(ClusNodePBCT node) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(ClusNodePBCT node, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
 }

@@ -166,12 +166,6 @@ public class Settings implements Serializable {
  ***********************************************************************/
 
 	protected INIFileString m_DataFile;
-        
-        // ********************************
-        //PBCT: Receive a second data file
-        protected INIFileString m_SecondDataFile;
-        // ********************************
-        
 	protected INIFileStringOrDouble m_TestSet;
 	protected INIFileStringOrDouble m_PruneSet;
 	protected INIFileStringOrInt m_PruneSetMax;
@@ -202,23 +196,6 @@ public class Settings implements Serializable {
 	public void updateDataFile(String fname) {
 		if (isNullFile()) m_DataFile.setValue(fname);
 	}
-        
-        // ********************************
-        //PBCT: Methods for second file
-        public String getSecondDataFile() {
-            return m_SecondDataFile.getValue();
-        }
-        
-        public boolean isNullSecondDataFile() {
-            return StringUtils.unCaseCompare(m_SecondDataFile.getValue(), NONE);
-        }
-        
-        public boolean isPBCT(){
-            return !isNullSecondDataFile();
-        }
-        
-        // ********************************
-        
 
 	public String getTestFile() {
 		return m_TestSet.getValue();
@@ -285,21 +262,10 @@ public class Settings implements Serializable {
  ***********************************************************************/
 
 	protected INIFileString m_Target;
-        protected INIFileString m_Clustering;
+	protected INIFileString m_Clustering;
 	protected INIFileString m_Descriptive;
 	protected INIFileString m_Key;
 	protected INIFileString m_Disabled;
-        
-        // ********************************
-        //PBCT: Created for second data
-        protected INIFileString m_SecondTarget;
-        protected INIFileString m_SecondClustering;
-	protected INIFileString m_SecondDescriptive;
-        protected INIFileString m_SecondKey;
-	protected INIFileString m_SecondDisabled;
-        // ********************************
-        
-        protected INIFileString m_DisabledMultipleRuns;
 	protected INIFileNominalOrDoubleOrVector m_Weights;
 	protected INIFileNominalOrDoubleOrVector m_ClusteringWeights;
 	protected INIFileBool m_ReduceMemoryNominal;
@@ -335,7 +301,6 @@ public class Settings implements Serializable {
 	public void setDescriptive(String str) {
 		m_Descriptive.setValue(str);
 	}
-        
 
 	public String getKey() {
 		return m_Key.getValue();
@@ -348,56 +313,6 @@ public class Settings implements Serializable {
 	public void setDisabled(String str) {
 		m_Disabled.setValue(str);
 	}
-        
-        //********************************
-        //PBCT: For handling the second data attributes
-        public String getSecondTarget() {
-		return m_SecondTarget.getValue();
-	}
-
-	public void setSecondTarget(String str) {
-		m_SecondTarget.setValue(str);
-	}
-
-	public boolean isNullSecondTarget() {
-		return StringUtils.unCaseCompare(m_SecondTarget.getValue(), NONE);
-	}
-        
-        public boolean isDefaultSecondTarget() {
-		return StringUtils.unCaseCompare(m_SecondTarget.getValue(), DEFAULT);
-	}
-
-	public String getSecondClustering() {
-		return m_SecondClustering.getValue();
-	}
-
-	public void setSecondClustering(String str) {
-		m_SecondClustering.setValue(str);
-	}
-
-	public String getSecondDescriptive() {
-		return m_SecondDescriptive.getValue();
-	}
-
-	public void setSecondDescriptive(String str) {
-		m_SecondDescriptive.setValue(str);
-	}
-        
-        public String getSecondKey() {
-		return m_SecondKey.getValue();
-	}
-
-	public String getSecondDisabled() {
-		return m_SecondDisabled.getValue();
-	}
-
-	public void setSecondDisabled(String str) {
-		m_SecondDisabled.setValue(str);
-	}
-        
-        // ********************************
-        
-        
 
 	public INIFileNominalOrDoubleOrVector getNormalizationWeights() {
 		return m_Weights;
@@ -624,13 +539,9 @@ public class Settings implements Serializable {
 	protected INIFileNominal m_WritePredictions;
 	protected INIFileBool m_WriteErrorFile;
 	protected INIFileBool m_ModelIDFiles;
-	protected INIFileBool m_OutputXMLModel;
 	protected INIFileBool m_OutputPythonModel;
 	protected INIFileBool m_OutputDatabaseQueries;
-	protected INIFileBool m_WriteCurves;
-        protected INIFileBool m_WriteOutFile;
-	protected INIFileBool m_WriteModelFile;
-	protected INIFileBool m_OutputMultiLabelErrors;
+	protected INIFileBool m_WriteCurves;	
 
 	public boolean isOutTrainError() {
 		return m_OutTrainErr.getValue();
@@ -691,14 +602,6 @@ public class Settings implements Serializable {
 	public boolean isOutputPythonModel() {
 		return m_OutputPythonModel.getValue();
 	}
-	
-	public void setOutputXMLModel(boolean value) {		
-		m_OutputXMLModel.setValue(value);
-	}
-	
-	public boolean isOutputXMLModel() {		
-		return m_OutputXMLModel.getValue();
-	}
 
 	public boolean isOutputDatabaseQueries() {
 		return m_OutputDatabaseQueries.getValue();
@@ -738,12 +641,6 @@ public class Settings implements Serializable {
 	public int getBaggingSets() {
 		return m_SetsData.getValue();
 	}
-        
-        // added by celine to get AUROC/AUPRC errors in multi-target regression setting
-	public boolean isOutputMultiLabelErrors() {
-		return m_OutputMultiLabelErrors.getValue();
-	}
-
 
 /***********************************************************************
  * Section: Output - Show info in .out file                            *
@@ -800,6 +697,9 @@ public class Settings implements Serializable {
 	
 	// end block added by Eduardo
 	
+        // @zamith
+        // PBCT
+        protected INIFileBool m_PBCT;
 	
 	protected INIFileSection m_SectionTree;
 	protected INIFileNominal m_Heuristic;
@@ -848,6 +748,11 @@ public class Settings implements Serializable {
 	}
 	// end block added by Eduardo
 	
+        // @zamith
+        // PBCT
+        public boolean getIsPBCT() {
+		return m_PBCT.getValue();
+	}
 	
 	
 	
@@ -1000,7 +905,7 @@ public class Settings implements Serializable {
 		m_SectionRules.setEnabled(enable);
 	}
 
-	public static boolean isPrintAllRules(){		
+	public static boolean isPrintAllRules(){
 		return m_PrintAllRules.getValue();
 	}
 
@@ -1710,7 +1615,6 @@ public class Settings implements Serializable {
 	protected INIFileNominalOrDoubleOrVector m_RecallValues;
 	protected INIFileString m_HierEvalClasses;
 	protected static INIFileBool m_HierUseMEstimate;
-        protected INIFileString m_DisabledLabels;
 
 	public void setSectionHierarchicalEnabled(boolean enable) {
 		m_SectionHierarchical.setEnabled(enable);
@@ -1781,17 +1685,13 @@ public class Settings implements Serializable {
 		ClassesValue.setEmptySetIndicator(m_HierEmptySetIndicator.getValue());
 	}
 	
+        public String getHierSep() {
+		return m_HierSep.getValue();
+	}
+        
 	public static boolean useMEstimate() {
 		return m_HierUseMEstimate.getValue();
 	}
-        
-        // ********************************
-        //PBCT
-        public String getHSeparator(){
-            return m_HierSep.getValue();
-        }
-        // ********************************
-
 
 /***********************************************************************
  * Section: Instance level constraints                                 *
@@ -2082,7 +1982,6 @@ public class Settings implements Serializable {
 	public static INIFileBool m_EnsembleOOBestimate;
 	protected INIFileBool m_FeatureRanking;
 	protected INIFileBool m_WriteEnsemblePredictions;
-	protected INIFileBool m_WriteBagTrainingFiles;
 	protected INIFileNominalOrIntOrVector m_BagSelection;
 
 	/** Do we want to use different random depth for different iterations of ensemble.
@@ -2179,11 +2078,6 @@ public class Settings implements Serializable {
 	public boolean shouldWritePredictionsFromEnsemble(){
 		return m_WriteEnsemblePredictions.getValue();
 	}
-	
-	// currently works for Bagging and RForest
-	public boolean shouldWriteBagTrainingFiles(){
-		return m_WriteBagTrainingFiles.getValue();
-	}
 
 	public static boolean shouldEstimateOOB( ){
 		return m_EnsembleOOBestimate.getValue();
@@ -2269,12 +2163,6 @@ public class Settings implements Serializable {
 
 		INIFileSection data = new INIFileSection("Data");
 		data.addNode(m_DataFile = new INIFileString("File", NONE));
-                
-                // ********************************
-                //PBCT: Add node for the second data
-                data.addNode(m_SecondDataFile = new INIFileString("SecondFile", NONE));
-                // ********************************
-                
 		data.addNode(m_TestSet = new INIFileStringOrDouble("TestSet", NONE));
 		data.addNode(m_PruneSet = new INIFileStringOrDouble("PruneSet", NONE));
 		data.addNode(m_PruneSetMax = new INIFileStringOrInt("PruneSetMax", INFINITY_STRING));
@@ -2287,18 +2175,8 @@ public class Settings implements Serializable {
 		attrs.addNode(m_Target = new INIFileString("Target", DEFAULT));
 		attrs.addNode(m_Clustering = new INIFileString("Clustering", DEFAULT));
 		attrs.addNode(m_Descriptive = new INIFileString("Descriptive", DEFAULT));
-                attrs.addNode(m_Key = new INIFileString("Key", NONE));
+		attrs.addNode(m_Key = new INIFileString("Key", NONE));
 		attrs.addNode(m_Disabled = new INIFileString("Disable", NONE));
-                
-                // ********************************
-                attrs.addNode(m_SecondTarget = new INIFileString("SecondTarget", DEFAULT));
-                attrs.addNode(m_SecondClustering = new INIFileString("SecondClustering", DEFAULT));
-		attrs.addNode(m_SecondDescriptive = new INIFileString("SecondDescriptive", DEFAULT));
-                attrs.addNode(m_SecondKey = new INIFileString("SecondKey", NONE));
-		attrs.addNode(m_SecondDisabled = new INIFileString("SecondDisable", NONE));
-                // ********************************
-                
-		attrs.addNode(m_DisabledMultipleRuns = new INIFileString("DisableMultipleRunsWithoutRereadingData", NONE));
 		attrs.addNode(m_Weights = new INIFileNominalOrDoubleOrVector("Weights",	NORMALIZATIONS));
 		m_Weights.setNominal(NORMALIZATION_DEFAULT);
 		attrs.addNode(m_ClusteringWeights = new INIFileNominalOrDoubleOrVector("ClusteringWeights", EMPTY));
@@ -2342,10 +2220,7 @@ public class Settings implements Serializable {
 		output.addNode(m_WriteCurves = new INIFileBool("WriteCurves", false));
 		output.addNode(m_OutputPythonModel = new INIFileBool("OutputPythonModel", false));
 		output.addNode(m_OutputDatabaseQueries = new INIFileBool("OutputDatabaseQueries", false));
-		output.addNode(m_WriteOutFile = new INIFileBool("WriteOutFile", true));
-		output.addNode(m_WriteModelFile = new INIFileBool("WriteModelFile", true));
-		output.addNode(m_OutputMultiLabelErrors = new INIFileBool("OutputMultiLabelErrors", false));
-		
+
 		INIFileSection nominal = new INIFileSection("Nominal");
 		nominal.addNode(m_MEstimate = new INIFileDouble("MEstimate", 1.0));
 
@@ -2375,7 +2250,10 @@ public class Settings implements Serializable {
 		// added by Eduardo Costa 06/06/2011
 		m_SectionTree.addNode(m_InductionOrder = new INIFileNominal("InductionOrder", INDUCTION_ORDER, 0));
 		
-		
+		// @zamith 
+                // PBCT
+                m_SectionTree.addNode(m_PBCT = new INIFileBool("PBCT", false));
+                
 		
 		
 		m_SectionRules = new INIFileSection("Rules");
@@ -2385,7 +2263,7 @@ public class Settings implements Serializable {
 		m_SectionRules.addNode(m_CoveringWeight = new INIFileDouble("CoveringWeight", 0.1));
 		m_SectionRules.addNode(m_InstCoveringWeightThreshold = new INIFileDouble("InstCoveringWeightThreshold", 0.1));
 		m_SectionRules.addNode(m_MaxRulesNb = new INIFileInt("MaxRulesNb", 1000));
-                m_SectionRules.addNode(m_HeurDispOffset = new INIFileDouble("HeurDispOffset", 0.0));
+	    m_SectionRules.addNode(m_HeurDispOffset = new INIFileDouble("HeurDispOffset", 0.0));
 		m_SectionRules.addNode(m_HeurCoveragePar = new INIFileDouble("HeurCoveragePar", 1.0));
 		m_SectionRules.addNode(m_HeurRuleDistPar = new INIFileDouble("HeurRuleDistPar", 0.0));
 		m_SectionRules.addNode(m_HeurPrototypeDistPar = new INIFileDouble("HeurPrototypeDistPar", 0.0));
@@ -2457,7 +2335,6 @@ public class Settings implements Serializable {
 		m_RecallValues.setNominal(0);		
 		m_SectionHierarchical.addNode(m_HierEvalClasses = new INIFileString("EvalClasses", NONE));
 		m_SectionHierarchical.addNode(m_HierUseMEstimate = new INIFileBool("MEstimate", false));
-		m_SectionHierarchical.addNode(m_DisabledLabels = new INIFileString("DisableLabels", NONE));
 		m_SectionHierarchical.setEnabled(false);
 		
 		
@@ -2617,7 +2494,7 @@ public class Settings implements Serializable {
 		}
 		if (cargs.hasOption("silent")) {
 			VERBOSE = 0;
-		}		
+		}
 	}
 
 	public void update(ClusSchema schema) {

@@ -23,6 +23,7 @@
 package clus.algo.split;
 
 import clus.main.*;
+import clus.algo.rules.ClusRuleHeuristicDispersion;
 import clus.data.type.*;
 import clus.model.test.*;
 import clus.statistic.*;
@@ -86,7 +87,8 @@ public class SubsetSplit extends NominalSplit {
 		double pos_freq = 0.0;
 		double bheur = Double.NEGATIVE_INFINITY;
 		// Not working for rules except if constraint of tests to '1' is desired!
-		if (nbvalues == 2 && (getStatManager().getSettings().isConstrainedToFirstAttVal())) {
+		if (nbvalues == 2 && (!getStatManager().isRuleInduceOnly()
+				|| getStatManager().getSettings().isConstrainedToFirstAttVal())) {
 			// Handle binary splits efficiently
 			card = 1;
 			isin[0] = true;
@@ -152,6 +154,10 @@ public class SubsetSplit extends NominalSplit {
 			// Each iteration the cardinality increases by at most one
 			m_PStat.reset();
 			int bvalue = 0;
+			if ((m_PStat instanceof CombStat) &&
+					((CombStat)m_PStat).getSettings().isHeurRuleDist()) {
+				((ClusRuleHeuristicDispersion)node.m_Heuristic).setDataIndexes(new int[0]);
+			}
 			boolean allowSubsetSplits = getStatManager().getSettings().isNominalSubsetTests();
 			while ((bvalue != -1) && ((card+1) < nbvalues)) {
 				bvalue = -1;
@@ -167,6 +173,7 @@ public class SubsetSplit extends NominalSplit {
 								isin_current[k] = isin[k];
 							}
 							isin_current[j] = true;
+							((ClusRuleHeuristicDispersion)node.m_Heuristic).setDataIndexes(isin_current);
 						}
 						// Calc heuristic
 						

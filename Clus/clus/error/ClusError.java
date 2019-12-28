@@ -298,18 +298,5 @@ public abstract class ClusError implements Serializable {
 	}
 
 //	public abstract void addExample(ClusData data, int idx, ClusStatistic pred);
-        
-        
-       //PBCT
-        public double getModelError(int i){
-            return 0.0;
-        }
-        
-        public String getName(int i){
-            return "";
-        }
-        
-        
-        
 
 }

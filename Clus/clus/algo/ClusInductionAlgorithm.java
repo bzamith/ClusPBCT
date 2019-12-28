@@ -50,14 +50,6 @@ public abstract class ClusInductionAlgorithm {
 	protected ClusSchema m_Schema;
 	protected ClusStatManager m_StatManager;
 
-        // ********************************
-        //PBCT: Receive for second dataset too
-        protected ClusSchema m_SecondSchema;
-        protected ClusStatManager m_SecondStatManager;
-        protected boolean m_IsPBCT;
-        // ********************************
-
-
 	public ClusInductionAlgorithm(ClusSchema schema, Settings sett) throws ClusException, IOException {
 		m_Schema = schema;
 		m_StatManager = new ClusStatManager(schema, sett);
@@ -132,38 +124,4 @@ public abstract class ClusInductionAlgorithm {
 		stat.optimizePreCalc(data);
 		return stat;
 	}
-        
-        
-        // ********************************
-        //PBCT: Adaptions for Interaction Data
-        public ClusInductionAlgorithm(ClusSchema schema, ClusSchema secondSchema, Settings sett) throws ClusException, IOException {
-		m_Schema = schema;
-                m_SecondSchema = secondSchema;
-		m_StatManager = new ClusStatManager(schema, sett);
-                m_SecondStatManager = new ClusStatManager(secondSchema, sett);
-                m_IsPBCT = sett.isPBCT();
-	}
-        
-        public ClusSchema getSecondSchema() {
-		return m_SecondSchema;
-	}
-
-	public ClusStatManager getSecondStatManager() {
-		return m_SecondStatManager;
-	}
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        // ********************************
-
-        
-        
-        
 }

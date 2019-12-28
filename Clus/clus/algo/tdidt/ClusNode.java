@@ -22,9 +22,6 @@
 
 package clus.algo.tdidt;
 
-import static clus.Clus.FIRST_DATA;
-import static clus.Clus.SECOND_DATA;
-
 import jeans.tree.*;
 import jeans.util.*;
 import jeans.util.compound.*;
@@ -32,9 +29,8 @@ import jeans.util.compound.*;
 import java.util.*;
 import java.io.*;
 
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
+// import weka.classifiers.trees.j48.NoSplit;
+// import weka.core.Utils;
 
 import clus.util.*;
 import clus.main.ClusRun;
@@ -48,10 +44,8 @@ import clus.model.test.*;
 import clus.statistic.*;
 import clus.algo.split.CurrentBestTestAndHeuristic;
 import clus.data.rows.*;
-import clus.data.type.ClusAttrType;
 import clus.data.attweights.*;
 import clus.error.multiscore.*;
-import static clus.model.ClusModel.PRUNE_INVALID;
 import clus.selection.OOBSelection;
 
 public class ClusNode extends MyNode implements ClusModel {
@@ -68,12 +62,14 @@ public class ClusNode extends MyNode implements ClusModel {
 	public ClusStatistic m_TargetStat;
 	public transient Object m_Visitor;
 	public long m_Time;
+	public String[] m_Alternatives;
 
 	public MyNode cloneNode() {
 		ClusNode clone = new ClusNode();
 		clone.m_Test = m_Test;
-		clone.m_ClusteringStat = m_ClusteringStat.cloneStat();
-		clone.m_TargetStat = m_TargetStat.cloneStat();
+		clone.m_ClusteringStat = m_ClusteringStat;
+		clone.m_TargetStat = m_TargetStat;
+		clone.m_Alternatives = m_Alternatives;
 		return clone;
 	}
 
@@ -84,7 +80,7 @@ public class ClusNode extends MyNode implements ClusModel {
 	}
 
 	public final ClusNode cloneTreeWithVisitors(ClusNode n1, ClusNode n2) {
-		if (n1 == this) { 
+		if (n1 == this) {
 			return n2;
 		} else {
 			ClusNode clone = (ClusNode)cloneNode();
@@ -238,6 +234,9 @@ public class ClusNode extends MyNode implements ClusModel {
 		return m_Test.hasUnknownBranch();
 	}
 
+	public String[] getAlternatives() {
+		return m_Alternatives;
+	}
 
 	/***************************************************************************
 	 * Insprectors concenring statistics
@@ -271,7 +270,6 @@ public class ClusNode extends MyNode implements ClusModel {
 	public final void setTargetStat(ClusStatistic stat) {
 		m_TargetStat = stat;
 	}
-        
 
 	public final void computePrediction() {
 		if (getClusteringStat() != null) getClusteringStat().calcMean();
@@ -311,6 +309,12 @@ public class ClusNode extends MyNode implements ClusModel {
 		}
 	}
 
+	public void setAlternatives(ArrayList alt) {
+		m_Alternatives = new String[alt.size()];
+		for (int i=0; i<alt.size(); i++) {
+			m_Alternatives[i] = alt.get(i).toString();
+		}
+	}
 
 	/***************************************************************************
 	 * Code for safe package clus.pruning the tree
@@ -586,7 +590,6 @@ public class ClusNode extends MyNode implements ClusModel {
 		}
 	}
 	
-        
 	/*
 	 * Returns the total number of nodes (incl leaves) in the tree rooted at this node
 	 */
@@ -708,6 +711,56 @@ public class ClusNode extends MyNode implements ClusModel {
 	}
 
 
+
+	public void printModelToPythonScript(PrintWriter wrt){
+		printTreeToPythonScript(wrt, "\t");
+	}
+
+	public void printModelToQuery(PrintWriter wrt, ClusRun cr, int starttree, int startitem, boolean exhaustive){
+		int lastmodel = cr.getNbModels()-1;
+		System.out.println("The number of models to print is:"+lastmodel);
+		String [][] tabitem = new String[lastmodel+1][10000]; //table of item
+		int [][] tabexist = new int[lastmodel+1][10000]; //table of booleen for each item
+		Global.set_treecpt(starttree);
+		Global.set_itemsetcpt(startitem);
+		ClusModelInfo m = cr.getModelInfo(0);//cr.getModelInfo(lastmodel);
+
+		if(exhaustive){
+		for (int i = 0; i < cr.getNbModels(); i++) {
+		ClusModelInfo mod = cr.getModelInfo(i);
+		ClusNode tree = (ClusNode)cr.getModel(i);
+		if(tree.getNbChildren() != 0){
+		tree.printTreeInDatabase(wrt,tabitem[i],tabexist[i], 0,"all_trees");
+		}
+//		print the statitistics here (the format depend on the needs of the plsql program)
+		if(tree.getNbNodes() <= 1){ //we only look for the majority class in the data
+		double error_rate = (tree.m_ClusteringStat).getErrorRel();
+		wrt.println("#"+(tree.m_ClusteringStat).getPredictedClassName(0));
+		wrt.println(mod.getModelSize()+", "+error_rate+", "+(1-error_rate));
+		}else{
+		//writer.println("INSERT INTO trees_charac VALUES(T1,"+size+error+accuracy+constraint);
+		wrt.println(mod.getModelSize()+", "+(mod.m_TrainErr).getErrorClassif()+", "+(mod.m_TrainErr).getErrorAccuracy());
+		}
+		Global.inc_treecpt();
+		}//end for
+		}//end if
+		else { //greedy search
+		ClusModelInfo mod = cr.getModelInfo(lastmodel);
+		ClusNode tree = (ClusNode)cr.getModel(lastmodel);
+		tabitem[lastmodel][0] = "null";
+		tabexist[lastmodel][0] = 1;
+		wrt.println("INSERT INTO trees_sets VALUES("+Global.get_itemsetcpt()+", '"+tabitem[lastmodel][0]+"', "+tabexist[lastmodel][0]+")");
+		wrt.println("INSERT INTO greedy_trees VALUES("+Global.get_treecpt()+", "+Global.get_itemsetcpt()+",1)");
+		Global.inc_itemsetcpt();
+		if(tree.getNbChildren() != 0){
+		printTreeInDatabase(wrt,tabitem[lastmodel],tabexist[lastmodel], 1,"greedy_trees");
+		}
+		wrt.println("INSERT INTO trees_charac VALUES("+Global.get_treecpt()+", "+mod.getModelSize()+", "+(mod.m_TrainErr).getErrorClassif()+", "+(mod.m_TrainErr).getErrorAccuracy()+", NULL)");
+		Global.inc_treecpt();
+		}
+	}
+
+
 	public final void printTree() {
 		PrintWriter wrt = new PrintWriter(new OutputStreamWriter(System.out));
 		printTree(wrt, StatisticPrintInfo.getInstance(), "");
@@ -729,16 +782,18 @@ public class ClusNode extends MyNode implements ClusModel {
 
 	public final void printTree(PrintWriter writer, StatisticPrintInfo info, String prefix, RowData examples) {
 		int arity = getNbChildren();
-		if (arity > 0) {			
+		if (arity > 0) {
 			int delta = hasUnknownBranch() ? 1 : 0;
 			if (arity - delta == 2) {
 				writer.print(m_Test.getTestString());
+
 				RowData examples0 = null;
 				RowData examples1 = null;
 				if (examples!=null){
 					examples0 = examples.apply(m_Test, 0);
 					examples1 = examples.apply(m_Test, 1);
-				}				
+				}			
+				showAlternatives(writer);
 				writeDistributionForInternalNode(writer, info);
 				writer.print(prefix + "+--yes: ");
 				((ClusNode)getChild(YES)).printTree(writer, info, prefix+"|       ",examples0);
@@ -750,8 +805,8 @@ public class ClusNode extends MyNode implements ClusModel {
 				} else {
 					((ClusNode)getChild(NO)).printTree(writer, info, prefix+"        ",examples1);
 				}
-			} else {				
-				writer.println(m_Test.getTestString());				
+			} else {
+				writer.println(m_Test.getTestString());
 				for (int i = 0; i < arity; i++) {
 					ClusNode child = (ClusNode)getChild(i);
 					String branchlabel = m_Test.getBranchLabel(i);
@@ -771,11 +826,11 @@ public class ClusNode extends MyNode implements ClusModel {
 		} else {//on the leaves
 			if (m_TargetStat == null) {
 				writer.print("?");
-			} else {				
-				writer.print(m_TargetStat.getString(info));				
+			} else {
+				writer.print(m_TargetStat.getString(info));
 			}
 			if (getID() != 0 && info.SHOW_INDEX) writer.println(" ("+getID()+")");
-			else writer.println();			
+			else writer.println();
 			if (examples!=null && examples.getNbRows()>0){
 				writer.println(examples.toString(prefix));
 				writer.println(prefix+"Summary:");
@@ -784,10 +839,206 @@ public class ClusNode extends MyNode implements ClusModel {
 
 		}
 	}
+	
+	// only binary trees supported
+	// no "unknown" branches supported
+	/*public final void printPaths(PrintWriter writer, String pathprefix, String numberprefix, RowData examples, OOBSelection oob_sel) {
+		//writer.flush();
+		//writer.println("nb ex: " + examples.getNbRows());
+		String newnumberprefix;
+		if (numberprefix.equals("")) {
+			newnumberprefix = "" + getID();
+		}
+		else {
+			newnumberprefix = numberprefix+"_"+getID();
+		}
+		int arity = getNbChildren();
+		if (arity > 0) {
+			if (arity == 2) {
+
+				RowData examples0 = null;
+				RowData examples1 = null;
+				RowData examplesMin1 = null;
+				if (examples!=null){
+					examples0 = examples.apply(m_Test, 0);
+					examples1 = examples.apply(m_Test, 1);
+					examplesMin1 = examples.apply(m_Test, -1); // ook -1 testen en die toevoegen aan zowel examples0 en examples1 voor missingvalues
+				}	
+				examples0.add(examplesMin1);
+				examples1.add(examplesMin1);
+				((ClusNode)getChild(YES)).printPaths(writer, pathprefix+"0", newnumberprefix, examples0,oob_sel);
+				((ClusNode)getChild(NO)).printPaths(writer, pathprefix+"1", newnumberprefix, examples1,oob_sel);
+				
+			} else {
+				System.out.println("PrintPaths error: only binary trees supported");
+			}
+		} else {//on the leaves
+			if (examples!=null){
+				//writer.println("LEAF");
+                String prediction = m_TargetStat.getPredictString();
+                for (int i=0; i<examples.getNbRows(); i++) {
+                        int exampleindex = examples.getTuple(i).getIndex();
+                        if (oob_sel != null) {
+                        boolean oob = oob_sel.isSelected(exampleindex);
+                        if (oob)
+                               // writer.println(exampleindex + "  " + pathprefix + " " + newnumberprefix + " " + prediction + "  OOB");
+                        		writer.println(exampleindex + "  " + pathprefix + " " + newnumberprefix + "  OOB");
+                       // else writer.println(exampleindex + "  " + pathprefix + " " + newnumberprefix + " " + prediction);
+                        else writer.println(exampleindex + "  " + pathprefix + " " + newnumberprefix);
+                        }
+                       // else writer.println(exampleindex + "  " + pathprefix + " " + newnumberprefix + " " + prediction);
+                        else writer.println(exampleindex + "  " + pathprefix + " " + newnumberprefix);
+                        writer.flush();
+                }	
+			}
+
+		}
+	}*/
+	
+	// printing test exs
+	/*public final void printPaths(PrintWriter writer, String pathprefix, String numberprefix, RowData examples) {
+		//writer.flush();
+		//writer.println("nb ex: " + examples.getNbRows());
+		String newnumberprefix;
+		if (numberprefix.equals("")) {
+			newnumberprefix = "" + getID();
+		}
+		else {
+			newnumberprefix = numberprefix+"_"+getID();
+		}
+		int arity = getNbChildren();
+		if (arity > 0) {
+			if (arity == 2) {
+
+				RowData examples0 = null;
+				RowData examples1 = null;
+				RowData examplesMin1 = null;
+				if (examples!=null){
+					examples0 = examples.apply(m_Test, 0);
+					examples1 = examples.apply(m_Test, 1);
+					examplesMin1 = examples.apply(m_Test, -1);
+				}		
+				examples0.add(examplesMin1);
+				examples1.add(examplesMin1);
+				((ClusNode)getChild(YES)).printPaths(writer, pathprefix+"0", newnumberprefix, examples0);
+				((ClusNode)getChild(NO)).printPaths(writer, pathprefix+"1", newnumberprefix, examples1);
+				
+			} else {
+				System.out.println("PrintPaths error: only binary trees supported");
+			}
+		} else {//on the leaves
+			if (examples!=null){
+				//writer.println("LEAF");
+                String prediction = m_TargetStat.getPredictString();
+                for (int i=0; i<examples.getNbRows(); i++) {
+                        int exampleindex = examples.getTuple(i).getIndex();
+                        if (exampleindex < 8192) {  // added because test and unlabeled set were put together in one testfile
+                       // writer.println(exampleindex + "  " + pathprefix + " " + newnumberprefix + " " + prediction + "  TEST");
+                        writer.println(exampleindex + "  " + pathprefix + " " + newnumberprefix + "  TEST");
+                        writer.flush();
+                        }
+                }	
+			}
+
+		}
+	}*/
+	
+	
+
+	/*to print the tree directly into an IDB : Elisa Fromont 13/06/2007*/
+	public final void printTreeInDatabase(PrintWriter writer, String tabitem[], int tabexist[], int cpt, String typetree) {
+		int arity = getNbChildren();
+		if (arity > 0) {
+			int delta = hasUnknownBranch() ? 1 : 0;
+				if (arity - delta == 2) { //the tree is binary
+					// in case the test is postive
+					tabitem[cpt] = m_Test.getTestString();
+					tabexist[cpt] = 1;
+					cpt++;
+					((ClusNode)getChild(YES)).printTreeInDatabase(writer,tabitem, tabexist, cpt, typetree);
+					cpt--;//to remove the last test on the father : now the test is negative
+					// in ca	se the test is negative
+					tabitem[cpt]= m_Test.getTestString();
+					//System.out.println("cpt = "+cpt+", tabitem = "+tabitem[cpt]);
+					tabexist[cpt] = 0;
+					cpt++;
+					if (hasUnknownBranch()) {
+						((ClusNode)getChild(NO)).printTreeInDatabase(writer,tabitem, tabexist, cpt, typetree);
+
+						((ClusNode)getChild(UNK)).printTreeInDatabase(writer,tabitem, tabexist, cpt, typetree);
+						}
+					else {
+					((ClusNode)getChild(NO)).printTreeInDatabase(writer, tabitem, tabexist, cpt, typetree);
+					}
+				}//end if arity- delta ==2
+
+				else{ //arity -delta =/= 2	the tree is not binary
+					//Has not beeen modified for databse purpose yet !!!!!!
+					writer.println("arity-delta different 2");
+					for (int i = 0; i < arity; i++) {
+					ClusNode child = (ClusNode)getChild(i);
+					String branchlabel = m_Test.getBranchLabel(i);
+					writer.print("+--" + branchlabel + ": ");
+					if (i != arity-1) {
+						child.printTreeInDatabase(writer,tabitem, tabexist, cpt, typetree);
+					} else {
+						child.printTreeInDatabase(writer,tabitem, tabexist, cpt, typetree);
+					}
+					}// end for
+				}//end else arity -delta =/= 2
+				} //end if arity >0 0
+
+				else {// if arity =0 : on a leaf
+					if (m_TargetStat == null) {
+						writer.print("?");
+					} else {
+						tabitem[cpt] = m_TargetStat.getPredictedClassName(0);
+						tabexist[cpt] = 1;
+						writer.print("#"); //nb leaf
+						for(int i =0; i <= (cpt-1); i++){
+						writer.print(printTestNode(tabitem[i],tabexist[i])+", ");
+						}
+						writer.println(printTestNode(tabitem[cpt],tabexist[cpt]));
+						cpt++;
+					}
+				}//end else if arity =0
+
+		}
 
 	public String printTestNode(String a, int pres){
 		if(pres == 1) {return a;}
 		else {return ("not("+a+")");}
+	}
+
+	public final void printTreeToPythonScript(PrintWriter writer, String prefix) {
+		int arity = getNbChildren();
+		if (arity > 0) {
+			int delta = hasUnknownBranch() ? 1 : 0;
+			if (arity - delta == 2) {
+				writer.println(prefix+"if " +m_Test.getTestString()+":");
+				((ClusNode)getChild(YES)).printTreeToPythonScript(writer, prefix+"\t");
+				writer.println(prefix + "else: ");
+				if (hasUnknownBranch()) {
+					//TODO anything to do???
+				} else {
+					((ClusNode)getChild(NO)).printTreeToPythonScript(writer, prefix+"\t");
+				}
+			} else {
+				//TODO what to do?
+			}
+		} else {
+			if (m_TargetStat != null) {
+				writer.println(prefix+"return "+m_TargetStat.getArrayOfStatistic());
+				System.out.println(m_TargetStat.getClass());
+			}
+		}
+	}
+
+	public final void showAlternatives(PrintWriter writer) {
+		if (m_Alternatives == null) return;
+		for (int i = 0; i < m_Alternatives.length; i++) {
+			writer.print(" and " + m_Alternatives[i]);
+		}
 	}
 
 	public String toString() {
@@ -840,29 +1091,5 @@ public class ClusNode extends MyNode implements ClusModel {
 		// recompute statistics
 		reInitTargetStat(data);
 		reInitClusteringStat(data);
-	}	
-
-    @Override
-    public void printModelToQuery(PrintWriter wrt, ClusRun cr, int starttree, int startitem, boolean exhaustive) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void printModelToPythonScript(PrintWriter wrt) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public Element printModelToXML(Document doc, StatisticPrintInfo info, RowData examples) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public ClusStatistic predictWeighted(DataTuple tuple, RowData m_SecondData) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-    
-    
-    
-    
+	}
 }

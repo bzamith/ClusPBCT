@@ -73,12 +73,4 @@ public class VarianceReductionHeuristicEfficient extends ClusHeuristic {
 		System.out.println("C-pos: "+pstat);
 		System.out.println("SS-pos: "+ss_pos+" SS-neg: "+ss_neg+" -> "+(ss_tot-(ss_pos+ss_neg)));
 	}
-        
-        // ********************************
-        //PBCT
-        public void setClusteringWeights(ClusAttributeWeights clust){
-            m_ClusteringWeights = clust;
-        }
-        // ********************************
-        
 }

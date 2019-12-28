@@ -22,7 +22,6 @@
 
 package clus.statistic;
 
-import clus.algo.tdidt.ClusNodePBCT;
 import jeans.math.*;
 import jeans.util.StringUtils;
 
@@ -34,9 +33,6 @@ import java.util.Arrays;
 
 import org.apache.commons.math.MathException;
 import org.apache.commons.math.distribution.*;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 import clus.main.*;
 import clus.util.*;
@@ -505,7 +501,7 @@ public class ClassificationStat extends ClusStatistic {
 		else {
 			buf.append("?");
 		}
-		if (info.SHOW_DISTRIBUTION) {			
+		if (info.SHOW_DISTRIBUTION) {
 			for (int j = 0; j < m_NbTarget; j++) {
 				buf.append(" [");
 				for (int i = 0; i < m_ClassCounts[j].length; i++) {
@@ -794,95 +790,5 @@ public class ClassificationStat extends ClusStatistic {
 		}
 		return result/m_NbTarget;
 	}
-
-	@Override
-	public Element getPredictElement(Document doc) {
-		NumberFormat fr = ClusFormat.SIX_AFTER_DOT;	
-		Element stats = doc.createElement("ClassificationStat");
-		Attr examples = doc.createAttribute("examples");
-		examples.setValue(fr.format(m_SumWeight));
-		stats.setAttributeNode(examples);
-		Element majorities = doc.createElement("MajorityClasses");
-		stats.appendChild(majorities);
-		if (m_MajorityClasses != null) {			
-			for (int i = 0; i < m_NbTarget; i++) {
-				Element majority = doc.createElement("Target");
-				majorities.appendChild(majority);
-				
-				majority.setTextContent(m_Attrs[i].getValue(m_MajorityClasses[i]));
-							
-				Attr name = doc.createAttribute("name");
-				name.setValue(m_Attrs[i].getName());
-				majority.setAttributeNode(name);
-			}			
-		}
-		else {
-			Element majority = doc.createElement("Attribute");
-			majorities.appendChild(majority);
-		}
-		Element distribution = doc.createElement("Distributions");
-		stats.appendChild(distribution);		
-		for (int j = 0; j < m_NbTarget; j++) {	
-			Element target = doc.createElement("Target");
-			distribution.appendChild(target);
-			Attr name = doc.createAttribute("name");
-			name.setValue(m_Attrs[j]+"");
-			target.setAttributeNode(name);
-			for (int i = 0; i < m_ClassCounts[j].length; i++) {
-				Element value = doc.createElement("Value");
-				target.appendChild(value);
-				name = doc.createAttribute("name");
-				name.setValue(m_Attrs[j].getValue(i));
-				value.setAttributeNode(name);
-				value.setTextContent(m_ClassCounts[j][i]+"");								
-			}			
-		}						
-		return stats;
-	}
-
-    @Override
-    public double getSumValues(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double getSumWeights(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double getSumSqValues(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void includeElements(ClusNodePBCT node) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void includeElements(ClusNodePBCT node, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public boolean getFilled(int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(double value, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(ClusNodePBCT node) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(ClusNodePBCT node, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
 
 }

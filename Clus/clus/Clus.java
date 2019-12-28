@@ -22,7 +22,13 @@
 
 package clus;
 
+// @zamith
+// PBCT
+import clus.PBCT.ClusPBCTDecisionTree;
+import clus.PBCT.PBCT;
+import clus.PBCT.approaches.SubtreeApproach;
 import clus.tools.debug.Debug;
+
 import clus.gui.*;
 import clus.io.ClusSerializable;
 import clus.algo.ClusInductionAlgorithm;
@@ -32,6 +38,7 @@ import clus.algo.tdidt.processor.NodeExampleCollector;
 import clus.algo.tdidt.processor.NodeIDWriter;
 import clus.algo.tdidt.tune.CDTTuneFTest;
 import clus.algo.tdidt.tune.CDTuneSizeConstrPruning;
+
 import jeans.io.*;
 import jeans.util.*;
 import jeans.util.cmdline.*;
@@ -54,12 +61,19 @@ import clus.error.multiscore.*;
 import clus.statistic.*;
 import clus.selection.*;
 import clus.ext.hierarchical.*;
+import clus.ext.beamsearch.*;
+import clus.ext.ensembles.*;
+import clus.ext.exhaustivesearch.*;
 import clus.ext.constraint.*;
 import clus.pruning.*;
+
 import clus.model.ClusModel;
 import clus.model.ClusModelInfo;
 import clus.model.processor.*;
 import clus.model.modelio.*;
+
+import clus.algo.kNN.*;
+import clus.algo.rules.*;
 
 // import clus.weka.*;
 
@@ -75,12 +89,11 @@ public class Clus implements CMDLineArgsProvider {
 			"debug", "tuneftest", "load", "soxval", "bag", "obag", "show",
 			"knn", "knnTree", "beam", "gui", "fillin", "rules", "weka",
 			"corrmatrix", "tunesize", "out2model", "test", "normalize",
-			"tseries", "writetargets", "fold", "forest", "copying", "sit", "tc",
-			"xml"};
+			"tseries", "writetargets", "fold", "forest", "copying", "sit", "tc" };
 
 	public final static int[] OPTION_ARITIES = { 0, 0, 0, 1, 1, 0, 0, 0, 0, 1,
 			0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1,
-			0, 0, 0, 0, 0};
+			0, 0, 0, 0 };
 
 	protected Settings m_Sett = new Settings();
 	protected ClusSummary m_Summary = new ClusSummary();
@@ -93,15 +106,12 @@ public class Clus implements CMDLineArgsProvider {
 	protected boolean isxval = false;
 	protected CMDLineArgs m_CmdLine;
 
-        // ********************************
-        //PBCT: For second data
-        protected ClusSchema m_SecondSchema;
-        protected RowData m_SecondData;
-        //protected boolean m_isPBCT;
-        public final static int FIRST_DATA = 1;
-        public final static int SECOND_DATA = 2;
-        // ********************************
-
+        // @zamith
+        // PBCT
+        protected boolean isPBCT = false;
+        protected RowData m_VerticalData;
+        protected ClusSchema m_VerticalSchema;
+        
         
 	public final void initialize(CMDLineArgs cargs,
 			ClusInductionAlgorithmType clss) throws IOException, ClusException {
@@ -129,18 +139,12 @@ public class Clus implements CMDLineArgsProvider {
 		// Updata schema based on settings
 		
 		m_Sett.updateTarget(m_Schema);
-                
-                // ********************************
-                //PBCT: Indicate type data to schema
-                m_Schema.setTypeData(FIRST_DATA);
-                // ********************************
-                
 		m_Schema.initializeSettings(m_Sett);
 		m_Sett.setTarget(m_Schema.getTarget().toString());
 		m_Sett.setDisabled(m_Schema.getDisabled().toString());
 		m_Sett.setClustering(m_Schema.getClustering().toString());
 		m_Sett.setDescriptive(m_Schema.getDescriptive().toString());
-
+                
 		// Load data from file
 		if (ResourceInfo.isLibLoaded()) {
 			ClusStat.m_InitialMemory = ResourceInfo.getMemory();
@@ -150,41 +154,31 @@ public class Clus implements CMDLineArgsProvider {
 		reader.close();
 		if(m_Sett.getVerbose() > 0) System.out.println("Found " + m_Data.getNbRows() + " rows");
 
+		if (getSettings().getNormalizeData() != Settings.NORMALIZE_DATA_NONE) {
+			if(m_Sett.getVerbose() > 0) System.out.println("Normalizing numerical data");
+			m_Data = returnNormalizedData(m_Data);
+		}
+
 		m_Schema.printInfo();
-                
-                // ********************************
-                // Read second dataset, create target, create dataset
-                ARFFFile secondArff = null;
-                ClusReader secondReader = null;
-                ClusView secondView = null;
-                if(m_Sett.isPBCT()){
-                    secondReader = new ClusReader(m_Sett.getSecondDataFile(), m_Sett);
-                    secondArff = new ARFFFile(secondReader);
-                    
-                    m_SecondSchema = secondArff.read(m_Sett);
-                    m_SecondSchema.setTypeData(SECOND_DATA);
-                    
-                    
-                    if(getSettings().isNullSecondTarget() || getSettings().isDefaultSecondTarget()){
-                            int beginTarget = m_SecondSchema.getNbAttributes() - m_Data.getNbRows() + 1;
-                            int endTarget = m_SecondSchema.getNbAttributes();
-                            m_Sett.setSecondTarget(beginTarget+"-"+endTarget);
-                            m_Sett.setSecondDescriptive(1+"-"+(beginTarget-1));
-                    }
-                    
-                    m_SecondSchema.initializeSettings(m_Sett);
-                    m_Sett.setSecondDisabled(m_SecondSchema.getDisabled().toString());
-                    m_Sett.setSecondClustering(m_SecondSchema.getClustering().toString());
-                    
-                    secondView = m_SecondSchema.createNormalView();
-                    m_SecondData = secondView.readData(secondReader, m_SecondSchema);
-                    secondReader.close();          
+		if (ResourceInfo.isLibLoaded()) {
+			ClusStat.m_LoadedMemory = ResourceInfo.getMemory();
+		}
+		if (getSettings().isRemoveMissingTarget()) {
+			m_Data = CriterionBasedSelection.removeMissingTarget(m_Data);
+			CriterionBasedSelection.clearMissingFlagTargetAttrs(m_Schema);
+		}
+
+                // @zamith
+                // PBCT 
+                isPBCT = m_Sett.getIsPBCT();
+                if(isPBCT){
+                    SubtreeApproach subtree = new SubtreeApproach(m_Data, m_Schema, m_Sett.getHierSep());
+                    PBCT pbctConfigs = new PBCT(m_Sett, subtree);
                 }
                 
-                // Create induce
-                m_Induce = clss.createInduce(m_Schema, m_SecondSchema, m_Sett, cargs);
-                // ********************************            
-                
+		// Create induce
+		m_Induce = clss.createInduce(m_Schema, m_Sett, cargs);
+
 		// Preprocess and initialize induce
 		m_Sett.update(m_Schema);
 		// If not rule induction, reset some settings just to be sure
@@ -193,20 +187,26 @@ public class Clus implements CMDLineArgsProvider {
 		// but the transformation for rules is used.
 		// It is also possible to use command line parameter -rules and use
 		// trees as a covering method.
-		m_Sett.disableRuleInduceParams();
+		if (!m_Induce.getStatManager().isRuleInduceOnly())
+			m_Sett.disableRuleInduceParams();
 		// Set XVal field in Settings
+		if (isxval)
+			Settings.IS_XVAL = true;
 		
 		preprocess(); // necessary in order to link the labels to the class
 						// hierarchy in HMC (needs to be before
 						// m_Induce.initialize())
 		m_Induce.initialize();
-		initializeAttributeWeights(m_Data,FIRST_DATA);
-                if(m_Sett.isPBCT()) initializeAttributeWeights(m_SecondData,SECOND_DATA);
-                
+		initializeAttributeWeights(m_Data);
 		m_Induce.initializeHeuristic();
 		loadConstraintFile();
 		initializeSummary(clss);
 		if(m_Sett.getVerbose() > 0) System.out.println();
+		// Sample data
+		if (cargs.hasOption("sample")) {
+			String svalue = cargs.getOptionValue("sample");
+			sample(svalue);
+		}
 		if(m_Sett.getVerbose() > 0) System.out.println("Has missing values: " + m_Schema.hasMissing());
 		if (ResourceInfo.isLibLoaded()) {
 			System.out.println("Memory usage: loading data took "
@@ -222,6 +222,39 @@ public class Clus implements CMDLineArgsProvider {
 		m_Classifier = clss;
 		m_Schema = schema;
 		m_CmdLine = new CMDLineArgs(this);
+	}
+
+	/***
+	 * Method for recreating ClusInduce and most other instance variables Useful
+	 * for running Clus on different data sets with a similar schema
+	 */
+	public void recreateInduce(CMDLineArgs cargs,
+			ClusInductionAlgorithmType clss, ClusSchema schema, RowData data)
+			throws ClusException, IOException {
+		m_Summary = new ClusSummary();
+		m_Schema = schema;
+		m_Induce = clss.createInduce(schema, m_Sett, cargs);
+		m_Data = data;
+		m_Classifier = clss;
+		data.setSchema(schema);
+		m_Induce.initialize();
+		initializeAttributeWeights(data);
+		m_Induce.initializeHeuristic();
+		initializeSummary(clss);
+	}
+
+	/***
+	 * Easy to use initialization method to be used from inside add-on
+	 * applications supporting Clus (e.g., applications converting data)
+	 **/
+	public void initializeAddOn(String appname) throws ClusException,
+			IOException {
+		Settings sett = getSettings();
+		sett.setDate(new Date());
+		sett.setAppName(appname);
+		initSettings(null);
+		ClusDecisionTree clss = new ClusDecisionTree(this);
+		initialize(new CMDLineArgs(this), clss);
 	}
 
 	public final void loadConstraintFile() throws IOException {
@@ -302,9 +335,58 @@ public class Clus implements CMDLineArgsProvider {
 		System.out.println();
 	}
 
+	/**
+	 * Train the model for given algorithm type.
+	 *
+	 * @param cr
+	 *            Information about this run.
+	 * @param clss
+	 *            Type of learning algorithm used.
+	 * @throws ClusException
+	 * @throws IOException
+	 */
 	public final void induce(ClusRun cr, ClusInductionAlgorithmType clss)
 			throws ClusException, IOException {
+		if (Settings.VERBOSE > 0) {
+			System.out.println("Run: " + cr.getIndexString());
+			clss.printInfo();
+			System.out.println();
+		}
 		clss.induceAll(cr);
+		if (Settings.VERBOSE > 0) {
+			System.out.println();
+		}
+	}
+
+	public final void showTree(String fname) throws ClusException, IOException,
+			ClassNotFoundException {
+		TreeFrame.showTree(getSettings().getFileAbsolute(fname));
+	}
+
+	public final void gui(String lok) throws ClusException, IOException,
+			ClassNotFoundException {
+		ClusSchema schema = new ClusSchema("Clus");
+		ClusStatManager mgr = new ClusStatManager(schema, m_Sett, false);
+		TreeFrame.start(mgr, lok);
+	}
+
+	public final void postprocModel(ClusModel model, TupleIterator iter,
+			ModelProcessorCollection coll) throws IOException, ClusException {
+		iter.init();
+		ClusSchema mschema = iter.getSchema();
+		if (iter.shouldAttach()) {
+			System.out
+					.println("Effect of should_attach not implemented in postprocModel");
+		}
+		coll.initialize(model, mschema);
+		DataTuple tuple = iter.readTuple();
+		while (tuple != null) {
+			model.applyModelProcessors(tuple, coll);
+			coll.modelDone();
+			tuple = iter.readTuple();
+		}
+		iter.close();
+		coll.terminate(model);
 	}
 
 	public final int getNbRows() {
@@ -318,21 +400,6 @@ public class Clus implements CMDLineArgsProvider {
 	public final RowData getRowDataClone() {
 		return (RowData) m_Data.cloneData();
 	}
-
-        // ********************************
-        //PBCT
-        public final int getSecondNbRows() {
-		return m_SecondData.getNbRows();
-	}
-
-	public final RowData getSecondData() {
-		return m_SecondData;
-	}
-
-	public final RowData getSecondRowDataClone() {
-		return (RowData) m_SecondData.cloneData();
-	}
-        // ********************************
 
 	public final MultiScore getMultiScore() {
 		return m_Score;
@@ -357,18 +424,6 @@ public class Clus implements CMDLineArgsProvider {
 	public final ClusSchema getSchema() {
 		return m_Schema;
 	}
-        
-        // ********************************
-        //PBCT
-        public final ClusStatManager getSecondStatManager() {
-		return m_Induce.getSecondStatManager();
-	}
-
-	public final ClusSchema getSecondSchema() {
-		return m_SecondSchema;
-	}
-        // ********************************
-        
 
 	public final Settings getSettings() {
 		return m_Sett;
@@ -405,32 +460,6 @@ public class Clus implements CMDLineArgsProvider {
 		mgr.initStopCriterion();
 		mgr.initSignifcanceTestingTable();
 	}
-        
-        // ********************************
-        //PBCT
-        public final void initializeAttributeWeights(ClusData data, int type)
-			throws IOException, ClusException {
-                ClusStatManager mgr = null;
-                if(type==FIRST_DATA) mgr = getInduce().getStatManager();
-                else mgr = getInduce().getSecondStatManager();
-		ClusStatistic allStat = mgr.createStatistic(ClusAttrType.ATTR_USE_ALL);
-		ClusStatistic[] stats = new ClusStatistic[1];
-		stats[0] = allStat;
-		/*
-		 * if (!m_Sett.isNullTestFile()) { System.out.println("Loading: " +
-		 * m_Sett.getTestFile()); updateStatistic(m_Sett.getTestFile(), stats);
-		 * } if (!m_Sett.isNullPruneFile()) { System.out.println("Loading: " +
-		 * m_Sett.getPruneFile()); updateStatistic(m_Sett.getPruneFile(),
-		 * stats); }
-		 */
-		mgr.initNormalizationWeights(allStat, data);
-		mgr.initClusteringWeights();
-		mgr.initDispersionWeights();
-		mgr.initHeuristic();
-		mgr.initStopCriterion();
-		mgr.initSignifcanceTestingTable();
-	}
-        // ********************************
 
 	public final void preprocess(ClusData data) throws ClusException {
 		DataPreprocs pps = getPreprocs(false);
@@ -513,8 +542,7 @@ public class Clus implements CMDLineArgsProvider {
 				writetest = true;
 			}
 		}
-                if(m_Sett.isPBCT()) return partitionData(m_Data, m_SecondData, sel, testfile, writetest, m_Summary, 1);
-                else return partitionData(m_Data, sel, testfile, writetest, m_Summary, 1);
+		return partitionData(m_Data, sel, testfile, writetest, m_Summary, 1);
 	}
 
 	public final ClusRun partitionData(ClusSelection sel, int idx)
@@ -576,7 +604,7 @@ public class Clus implements CMDLineArgsProvider {
 	public final ClusRun partitionDataBasic(RowData train) throws IOException,
 			ClusException {
 		ClusSummary summary = new ClusSummary();
-		return partitionDataBasic((ClusData) train, (ClusSelection) null, (ClusData) null, summary, 1);
+		return partitionDataBasic(train, null, null, summary, 1);
 	}
 
 	public final ClusRun partitionDataBasic(ClusData data, ClusSelection sel,
@@ -640,11 +668,14 @@ public class Clus implements CMDLineArgsProvider {
 		ClusErrorList error = new ClusErrorList();
 		NumericAttrType[] num = schema.getNumericAttrUse(ClusAttrType.ATTR_USE_TARGET);
 		NominalAttrType[] nom = schema.getNominalAttrUse(ClusAttrType.ATTR_USE_TARGET);
+		TimeSeriesAttrType[] ts = schema.getTimeSeriesAttrUse(ClusAttrType.ATTR_USE_TARGET);
 		if (nom.length != 0) {
 			error.addError(new Accuracy(error, nom));
 		} else if (num.length != 0) {
 			error.addError(new PearsonCorrelation(error, num));
-		} 
+		} else if (ts.length != 0) {
+			error.addError(new PearsonCorrelation(error, num));
+		}
 		/* attach model to given schema */
 		schema.attachModel(model);
 		/* iterate over tuples and compute error */
@@ -686,15 +717,13 @@ public class Clus implements CMDLineArgsProvider {
 				ClusModelInfo mi = cr.getModelInfo(i);
 				if (mi != null && mi.getModel() != null) {
 					ClusModel model = mi.getModel();
-                                        ClusStatistic pred;
-                                        if(m_Sett.isPBCT()) pred = model.predictWeighted(tuple,m_SecondData);
-                                        else pred = model.predictWeighted(tuple);
+					ClusStatistic pred = model.predictWeighted(tuple);
 					ClusErrorList err = mi.getError(type);
 					if (err != null)
 						err.addExample(tuple, pred);
 					ModelProcessorCollection coll = mi.getModelProcessors(type);
 					if (coll != null) {
-						if (coll.needsModelUpdate() && !m_Sett.isPBCT()) {
+						if (coll.needsModelUpdate()) {
 							model.applyModelProcessors(tuple, coll);
 							coll.modelDone();
 						}
@@ -719,11 +748,45 @@ public class Clus implements CMDLineArgsProvider {
 	public void addModelErrorMeasures(ClusRun cr) {
 		for (int i = 0; i < cr.getNbModels(); i++) {
 			ClusModelInfo info = cr.getModelInfo(i);
+			// Compute rule-wise error measures
+			if (info != null && info.getModel() instanceof ClusRuleSet
+					&& m_Sett.isRuleWiseErrors()) {
+				ClusRuleSet ruleset = (ClusRuleSet) info.getModel();
+				ruleset.setError(info.getTrainingError(), ClusModel.TRAIN);
+				ruleset.setError(info.getTestError(), ClusModel.TEST);
+				info.addModelProcessor(ClusModelInfo.TRAIN_ERR, new ClusCalcRuleErrorProc(ClusModel.TRAIN, info.getTrainingError()));
+				info.addModelProcessor(ClusModelInfo.TEST_ERR, new ClusCalcRuleErrorProc(ClusModel.TEST, info.getTestError()));
+			}
+		}
+	}
+
+	public final void calcExtraTrainingSetErrors(ClusRun cr)
+			throws ClusException {
+		ClusErrorList parent = getStatManager().createExtraError(
+				ClusModelInfo.TRAIN_ERR);
+		for (int i = 0; i < cr.getNbModels(); i++) {
+			ClusModelInfo info = cr.getModelInfo(i);
+			if (info != null) {
+				ClusErrorList parent_cl = parent.getErrorClone();
+				parent_cl.compute((RowData) cr.getTrainingSet(), info);
+				info.setExtraError(ClusModelInfo.TRAIN_ERR, parent_cl);
+				if (info.getModel() instanceof ClusRuleSet
+						&& m_Sett.isRuleWiseErrors()) {
+					ClusRuleSet ruleset = (ClusRuleSet) info.getModel();
+					for (int j = 0; j < ruleset.getModelSize(); j++) {
+						ClusErrorList rule_error = parent.getErrorClone();
+						rule_error.compute((RowData) cr.getTrainingSet(),
+								ruleset.getRule(j));
+						ruleset.getRule(j).addError(rule_error,
+								ClusModelInfo.TRAIN_ERR);
+					}
+				}
+			}
 		}
 	}
 
 	public final void calcError(ClusRun cr, ClusSummary summary) throws IOException, ClusException {
-		calcError(cr, summary, null);
+		calcError(cr, summary);
 	}
 	public final void calcError(ClusRun cr, ClusSummary summary, ClusEnsemblePredictionWriter ens_pred) throws IOException, ClusException {
 		cr.copyAllModelsMIs();
@@ -752,6 +815,46 @@ public class Clus implements CMDLineArgsProvider {
 		if (summary != null) {
 			summary.addSummary(cr);
 		}
+	}
+
+	public final void out2model(String fname) throws IOException, ClusException {
+		String model_name = FileUtil.getName(fname) + ".model";
+		ClusTreeReader rdr = new ClusTreeReader();
+		ClusNode node = rdr.loadOutTree(fname, m_Schema, "Original Model");
+		if (node == null) {
+			// If original model not in .out, go with pruned version
+			node = rdr.loadOutTree(fname, m_Schema, "Pruned Model");
+		}
+		if (node == null) {
+			throw new ClusException("Unable to find original tree in .out file");
+		}
+		ClusRun cr = partitionData();
+		ConstraintDFInduce induce = new ConstraintDFInduce(m_Induce);
+		ClusNode orig = induce.fillInInduce(cr, node, getScore());
+		orig.numberTree();
+		PruneTree pruner = induce.getStatManager().getTreePruner(
+				cr.getPruneSet());
+		pruner.setTrainingData((RowData) cr.getTrainingSet());
+		ClusNode pruned = (ClusNode) orig.cloneTree();
+		pruner.prune(pruned);
+		pruned.numberTree();
+		System.out.println();
+		System.out.println("Tree read from .out:");
+		orig.printTree();
+		System.out.println();
+		if (rdr.getLineAfterTree() != null) {
+			System.out.println("First line after tree: '"
+					+ rdr.getLineAfterTree() + "'");
+			System.out.println();
+		}
+		ClusModelCollectionIO io = new ClusModelCollectionIO();
+		ClusModelInfo pruned_info = new ClusModelInfo("Pruned");
+		pruned_info.setModel(pruned);
+		io.addModel(pruned_info);
+		ClusModelInfo orig_info = new ClusModelInfo("Original");
+		orig_info.setModel(orig);
+		io.addModel(orig_info);
+		io.save(model_name);
 	}
 
 	/** Compute standard deviation and mean for each of the given attributes.
@@ -849,6 +952,173 @@ public class Clus implements CMDLineArgsProvider {
 		meanAndStdDev[1] = stdDevs;
 		return meanAndStdDev;	
 	}
+	
+	
+	/**
+	 * Normalize the data so that most of the variables are within [-0.5,0.5]
+	 * range. Using Zenko, 2007 suggestion.
+	 * Should not be used with GD optimization - it has an internal normalization. 
+	 */
+	public static final RowData returnNormalizedData(RowData data) {
+
+		NumericAttrType[] numTypes = data.getSchema().getNumericAttrUse(ClusAttrType.ATTR_USE_ALL);
+		double[][] meanAndStdDev = calcStdDevsForTheSet(data, numTypes);
+
+		// Variance and mean for numeric types.
+		double[] stdDevs = meanAndStdDev[1];
+		double[] mean = meanAndStdDev[0];
+
+		ArrayList<DataTuple> normalized = new ArrayList<DataTuple>();
+
+		for (int jNumAttrib = 0; jNumAttrib < numTypes.length; jNumAttrib++)
+			numTypes[jNumAttrib].setSparse(false); // Sparsity assumes that all values are > 0
+
+		// Make the alterations
+		for (int iRow = 0; iRow < data.getNbRows(); iRow++) {
+			DataTuple tuple = data.getTuple(iRow).deepCloneTuple();
+
+			for (int jNumAttrib = 0; jNumAttrib < tuple.m_Doubles.length; jNumAttrib++) {
+				NumericAttrType type = numTypes[jNumAttrib];
+
+				double value = type.getNumeric(tuple);
+				if (!Double.isNaN(value) && !Double.isInfinite(value)) {// Value not given
+					value -= mean[jNumAttrib]; // Putting the mean to 0
+					
+					// Suggestion by Zenko 2007 p. 22 4*standard deviation.
+					// However we are also moving the data to
+					// zero mean. Thus we take only 2 * standard deviation.
+					value /= 2 * stdDevs[jNumAttrib];
+					// value += 0.5; // Putting the mean to 0.5
+
+					// After this transformation the mean should be about 0.0
+					// and variance about 0.25
+					// (and standard deviation 0.5). Thus 95% of values should
+					// be between [-1,1]
+				}
+				type.setNumeric(tuple, value);
+				// The following should be done only once for every numtype but
+				// it does not
+				// take very much time
+			}
+			normalized.add(tuple);
+		}
+		
+		RowData normalized_data = new RowData(normalized, data.getSchema());
+		System.out.println("Normalized number of examples: "
+				+ normalized_data.getNbRows());
+
+		// //DEBUG
+		//
+		//
+		// variance = new double[numTypes.length];
+		// mean = new double[numTypes.length];
+		// //** Some of the values are not valid. These should not be used for
+		// computing variance etc. *//
+		// nbOfValidValues = new double[numTypes.length];
+		//
+		//
+		//
+		//
+		// // Computing the means
+		// for (int iRow = 0; iRow < normalized_data.getNbRows(); iRow++) {
+		// DataTuple tuple = normalized_data.getTuple(iRow);
+		//
+		// for (int jNumAttrib = 0; jNumAttrib < numTypes.length; jNumAttrib++)
+		// {
+		// double value = numTypes[jNumAttrib].getNumeric(tuple);
+		// if (!Double.isNaN(value) && !Double.isInfinite(value)) {// Value not
+		// given
+		// mean[jNumAttrib] += value;
+		// nbOfValidValues[jNumAttrib]++;
+		// }
+		// }
+		// }
+		//
+		// // Divide with the number of examples
+		// for (int jNumAttrib = 0; jNumAttrib < numTypes.length; jNumAttrib++)
+		// {
+		// if (nbOfValidValues[jNumAttrib] == 0) {
+		// nbOfValidValues[jNumAttrib] = 1; // Do not divide with zero
+		// }
+		// mean[jNumAttrib] /= nbOfValidValues[jNumAttrib];
+		// }
+		//
+		// // Computing the variances
+		// for (int iRow = 0; iRow < normalized_data.getNbRows(); iRow++) {
+		// DataTuple tuple = normalized_data.getTuple(iRow);
+		//
+		// for (int jNumAttrib = 0; jNumAttrib < numTypes.length; jNumAttrib++)
+		// {
+		// double value = numTypes[jNumAttrib].getNumeric(tuple);
+		// if (!Double.isNaN(value) && !Double.isInfinite(value)) // Value not
+		// given
+		// variance[jNumAttrib] += Math.pow(value - mean[jNumAttrib], 2.0);
+		// }
+		// }
+		//
+		// // Divide with the number of examples
+		// for (int jNumAttrib = 0; jNumAttrib < numTypes.length; jNumAttrib++)
+		// {
+		//
+		// variance[jNumAttrib] /= nbOfValidValues[jNumAttrib];
+		//
+		//
+		// }
+
+		return normalized_data;
+	}
+
+	/**
+	 * Does not necessarily do the same as returnNormalizedData. However, stores
+	 * the normalized data to file. Kept (and not modified) for compatibility
+	 * purposes.
+	 */
+	public final void normalizeDataAndWriteToFile() throws IOException,
+			ClusException {
+		RowData data = (RowData) m_Data;
+		CombStat cmb = (CombStat) getStatManager().getTrainSetStat(
+				ClusAttrType.ATTR_USE_ALL);
+		RegressionStat rstat = cmb.getRegressionStat();
+		NumericAttrType[] numtypes = getSchema().getNumericAttrUse(
+				ClusAttrType.ATTR_USE_ALL);
+		int tcnt = 0;
+		for (int j = 0; j < numtypes.length; j++) {
+			NumericAttrType type = numtypes[j];
+			if (type.isTarget()) {
+				tcnt++;
+				NumberFormat format = ClusFormat.THREE_AFTER_DOT;
+				System.out.print(StringUtils.printStr("T" + tcnt + " ", 5));
+				System.out
+						.print(StringUtils.printStr(type.getName() + " ", 30));
+				System.out.print(StringUtils.printStr(format.format(rstat
+						.getMean(j)), 10));
+				System.out.print(StringUtils.printStr(format.format(Math
+						.sqrt(rstat.getVariance(j))), 10));
+				System.out.println();
+			}
+		}
+		ArrayList normalized = new ArrayList();
+		for (int i = 0; i < data.getNbRows(); i++) {
+			DataTuple tuple = data.getTuple(i).deepCloneTuple();
+			for (int j = 0; j < numtypes.length; j++) {
+				NumericAttrType type = numtypes[j];
+				if (type.isTarget()) {
+					double value = type.getNumeric(tuple);
+					value -= rstat.getMean(j);
+					value /= Math.sqrt(rstat.getVariance(j));
+					type.setNumeric(tuple, value);
+				}
+			}
+			normalized.add(tuple);
+		}
+		RowData normalized_data = new RowData(normalized, getSchema());
+		System.out.println("Size: " + normalized_data.getNbRows());
+
+		String fname = m_Sett.getFileAbsolute(FileUtil.getName(m_Sett
+				.getDataFile())
+				+ "_norm.arff");
+		ARFFFile.writeArff(fname, normalized_data);
+	}
 
 	public final void testModel(String fname) throws IOException,
 			ClusException, ClassNotFoundException {
@@ -859,10 +1129,22 @@ public class Clus implements CMDLineArgsProvider {
 		ClusRun cr = partitionData();
 		getStatManager().updateStatistics(res);
 		getSchema().attachModel(res);
+		getClassifier().pruneAll(cr);
+		getClassifier().postProcess(cr);
 		calcError(cr, null, null);
 		out.writeHeader();
 		out.writeOutput(cr, true, m_Sett.isOutTrainError());
 		out.close();
+	}
+
+	public final void showModel(String fname) throws IOException,
+			ClusException, ClassNotFoundException {
+		ClusModelCollectionIO io = ClusModelCollectionIO.load(fname);
+		ClusNode res = (ClusNode) io.getModel("Pruned");
+		System.out.println("Tree read from .model:");
+		System.out.println();
+		res.inverseTests();
+		res.printTree();
 	}
 
 	public final void saveModels(ClusRun models, ClusModelCollectionIO io)
@@ -879,18 +1161,33 @@ public class Clus implements CMDLineArgsProvider {
 		}
 	}
 
+	public ClusRun train(RowData train) throws ClusException, IOException {
+		m_Induce = getClassifier().createInduce(train.getSchema(), m_Sett, m_CmdLine);
+		ClusRun cr = partitionDataBasic(train);
+		m_Induce.initialize();
+		initializeAttributeWeights(m_Data);
+		m_Induce.initializeHeuristic();
+		getStatManager().computeTrainSetStat((RowData) cr.getTrainingSet());
+		induce(cr, getClassifier());
+		return cr;
+	}
+
 	public final void singleRun(ClusInductionAlgorithmType clss)
 			throws IOException, ClusException {
 		ClusModelCollectionIO io = new ClusModelCollectionIO();
 		m_Summary.setTotalRuns(1);
 		ClusRun run = singleRunMain(clss, null);
-                
-                //PBCT
-                if(!(m_Sett.isPBCT() & clss instanceof CDTTuneFTest))
-                    saveModels(run, io);
+		saveModels(run, io);
 		// io.save(getSettings().getFileAbsolute(m_Sett.getAppName() +
 		// ".model"));
-		//io.save(getSettings().getFileAbsolute(m_Sett.getAppName() + ".model"));
+		if (ClusEnsembleInduce.isOptimized()
+				&& (m_Sett.getNbBaggingSets().getVectorLength() > 1) && (m_Sett.getBagSelection().getIntVectorSorted()[0] < 1))
+			io.save(getSettings().getFileAbsolute(
+					m_Sett.getAppName() + "_"
+							+ ClusEnsembleInduce.getMaxNbBags() + "_.model"));
+		else
+			io.save(getSettings().getFileAbsolute(
+					m_Sett.getAppName() + ".model"));
 
 	}
 
@@ -903,7 +1200,14 @@ public class Clus implements CMDLineArgsProvider {
 		// ClusOutput output = new ClusOutput(m_Sett.getAppName() + ".out",
 		// m_Schema, m_Sett);
 		ClusOutput output;
-		output = new ClusOutput(m_Sett.getAppName() + ".out", m_Schema,	m_Sett);
+		if (ClusEnsembleInduce.isOptimized()
+				&& (m_Sett.getNbBaggingSets().getVectorLength() > 1) && (m_Sett.getBagSelection().getIntVectorSorted()[0] < 1))
+			output = new ClusOutput(m_Sett.getAppName() + "_"
+					+ ClusEnsembleInduce.getMaxNbBags() + "_.out", m_Schema,
+					m_Sett);
+		else
+			output = new ClusOutput(m_Sett.getAppName() + ".out", m_Schema,
+					m_Sett);
 		ClusRun cr = partitionData();
 		// Compute statistic on training data
 		getStatManager().computeTrainSetStat((RowData) cr.getTrainingSet());
@@ -920,36 +1224,277 @@ public class Clus implements CMDLineArgsProvider {
 		 */
 		// Induce model
 		induce(cr, clss);
-                
-                //PBCT
-                if(!(m_Sett.isPBCT() & clss instanceof CDTTuneFTest)){
-                    if (summ == null) {
-                            // E.g., rule-wise error measures
-                            addModelErrorMeasures(cr);
-                    }
-                    // Calc error
-                    calcError(cr, null, null);
-                    if (summ != null) {
-                            for (int i = 0; i < cr.getNbModels(); i++) {
-                                    ClusModelInfo info = cr.getModelInfo(i);
-                                    ClusModelInfo summ_info = summ.getModelInfo(i);
-                                    ClusErrorList test_err = summ_info.getTestError();
-                                    info.setTestError(test_err);
-                            }
-                    }
-                    output.writeHeader();
-                    output.writeOutput(cr, true, m_Sett.isOutTrainError());
-                    new File("hierarchy.xml").delete();
-                    output.close();
-                    clss.saveInformation(m_Sett.getAppName());
-                    return cr;
-                }
-                return null;
+		if (summ == null) {
+			// E.g., rule-wise error measures
+			addModelErrorMeasures(cr);
+		}
+		// Calc error
+		calcError(cr, null, null);
+		if (summ != null) {
+			for (int i = 0; i < cr.getNbModels(); i++) {
+				ClusModelInfo info = cr.getModelInfo(i);
+				ClusModelInfo summ_info = summ.getModelInfo(i);
+				ClusErrorList test_err = summ_info.getTestError();
+				info.setTestError(test_err);
+			}
+		}
+		calcExtraTrainingSetErrors(cr);
+		output.writeHeader();
+		output.writeOutput(cr, true, m_Sett.isOutTrainError());
+		output.close();
+		clss.saveInformation(m_Sett.getAppName());
+		return cr;
+	}
+
+	public final XValMainSelection getXValSelection() throws IOException,
+			ClusException {
+		if (m_Sett.isLOOXVal()) {
+			return new XValRandomSelection(m_Data.getNbRows(), m_Data
+					.getNbRows());
+		} else if (m_Sett.isNullXValFile()) {
+			return m_Schema.getXValSelection(m_Data);
+		} else {
+			return XValDataSelection.readFoldsFile(m_Sett.getXValFile(), m_Data
+					.getNbRows());
+		}
+	}
+
+	public final void combineAllFoldRuns(ClusInductionAlgorithmType clss)
+			throws IOException, ClusException {
+		ClusOutput output = new ClusOutput(m_Sett.getAppName() + ".xval",
+				m_Schema, m_Sett);
+		output.writeHeader();
+		XValMainSelection sel = getXValSelection();
+		m_Summary.setTotalRuns(sel.getNbFolds());
+		for (int fold = 0; fold < sel.getNbFolds(); fold++) {
+			String dat_fname = "folds/" + m_Sett.getAppName() + ".fold." + fold;
+			System.out.println("Reading: " + dat_fname);
+			ObjectLoadStream strm = new ObjectLoadStream(new FileInputStream(
+					dat_fname));
+			try {
+				m_Summary.addSummary((ClusRun) strm.readObject());
+				output.print((String) strm.readObject());
+			} catch (ClassNotFoundException e) {
+			}
+			strm.close();
+		}
+		PrintWriter wrt = new PrintWriter(new OutputStreamWriter(
+				new FileOutputStream(m_Sett.getAppName() + ".test.pred")));
+		for (int fold = 0; fold < sel.getNbFolds(); fold++) {
+			String pw_fname = "folds/" + m_Sett.getAppName() + ".test.pred."
+					+ fold;
+			System.out.println("Combining: " + pw_fname);
+			LineNumberReader rdr = new LineNumberReader(new InputStreamReader(
+					new FileInputStream(pw_fname)));
+			String line = rdr.readLine();
+			if (fold != 0) {
+				// Only copy header from fold 0
+				while (line != null && !line.equals("@DATA")) {
+					line = rdr.readLine();
+				}
+				line = rdr.readLine();
+			}
+			while (line != null) {
+				wrt.println(line);
+				line = rdr.readLine();
+			}
+			rdr.close();
+		}
+		wrt.close();
+		output.writeSummary(m_Summary);
+		output.close();
+		/* Cross-validation now includes a single run */
+		ClusRandom.initialize(m_Sett);
+		singleRunMain(clss, m_Summary);
+	}
+
+	public final void oneFoldRun(ClusInductionAlgorithmType clss, int fold)
+			throws IOException, ClusException {
+		if (fold == 0) {
+			combineAllFoldRuns(clss);
+		} else {
+			fold = fold - 1;
+			FileUtil.mkdir("folds");
+			ClusOutput output = new ClusOutput(m_Schema, m_Sett);
+			ClusStatistic target = getStatManager().createStatistic(
+					ClusAttrType.ATTR_USE_TARGET);
+			String pw_fname = "folds/" + m_Sett.getAppName() + ".test.pred."
+					+ fold;
+			PredictionWriter wrt = new PredictionWriter(pw_fname, m_Sett,
+					target);
+			wrt.globalInitialize(m_Schema);
+			XValMainSelection sel = getXValSelection();
+			ClusModelCollectionIO io = new ClusModelCollectionIO();
+			m_Summary.setTotalRuns(sel.getNbFolds());
+			ClusRun cr = doOneFold(fold, clss, sel, io, wrt, output, null, null);
+			wrt.close();
+			output.close();
+			// Write summary of this run to a file
+			// cr.deleteDataAndModels();
+			cr.deleteData();
+			String dat_fname = "folds/" + m_Sett.getAppName() + ".fold." + fold;
+			ObjectSaveStream strm = new ObjectSaveStream(new FileOutputStream(
+					dat_fname));
+			strm.writeObject(cr);
+			strm.writeObject(output.getString());
+			strm.close();
+		}
+	}
+
+	public final ClusRun doOneFold(int fold, ClusInductionAlgorithmType clss,
+			XValMainSelection sel, ClusModelCollectionIO io,
+			PredictionWriter wrt, ClusOutput output, ClusErrorOutput errOutput, ClusEnsemblePredictionWriter ens_pred)
+			throws IOException, ClusException {
+		XValSelection msel = new XValSelection(sel, fold);
+		ClusRun cr = partitionData(msel, fold + 1);
+		// Create statistic for the training set
+		getStatManager().computeTrainSetStat((RowData) cr.getTrainingSet());
+		if (wrt != null) {
+			wrt.println("! Fold = " + fold);
+			cr.getAllModelsMI().addModelProcessor(ClusModelInfo.TEST_ERR, wrt);
+			if (m_Sett.isOutFoldData()) {
+				ARFFFile.writeArff(m_Sett.getAppName() + "-test-"+fold+".arff", cr.getTestSet());
+				ARFFFile.writeArff(m_Sett.getAppName() + "-train-"+fold+".arff", (RowData)cr.getTrainingSet());
+			}
+		}
+		// Used for exporting data to CN2 and Orange formats
+
+		/*
+		 * ARFFFile.writeCN2Data("test-"+i+".exs", cr.getTestSet());
+		 * ARFFFile.writeCN2Data("train-"+i+".exs",
+		 * (RowData)cr.getTrainingSet());
+		 * ARFFFile.writeOrangeData("test-"+fold+".tab", cr.getTestSet());
+		 * ARFFFile.writeOrangeData("train-"+fold+".tab",
+		 * (RowData)cr.getTrainingSet());
+		 */
+//		 ARFFFile.writeRData("trainDataForR."+ fold + ".data",
+//		 (RowData)cr.getTrainingSet()); ARFFFile.writeRData("testDataForR."+
+//		 fold + ".data", (RowData)cr.getTestSet());
+//		 ARFFFile.writeRDataNominalLabels("nominalLabels.data",
+//		 (RowData)cr.getTrainingSet());
+//		 System.err.println("CHANGING DATA TO R FORMAT, REMOVE THIS CODE");
+		 
+
+		// Induce tree
+		induce(cr, clss);
+		if (m_Sett.isRuleWiseErrors()) {
+			addModelErrorMeasures(cr);
+		}
+		// Calc error
+		calcError(cr, m_Summary, ens_pred);
+		if (errOutput != null) {
+			// Write errors to ARFF file
+			errOutput.writeOutput(cr, false, false, getStatManager()
+					.getClusteringWeights().m_Weights);
+		}
+		if (m_Sett.isOutputFoldModels()) {
+			// Write output to file and also store in .model file
+			output.writeOutput(cr, false);
+			if (!Settings.m_EnsembleMode) {
+				ClusModelInfo mi = cr.getModelInfo(ClusModel.PRUNED);
+				if (mi != null)
+					io.addModel(mi);
+			}
+		} else {
+			output.writeBrief(cr);
+		}
+		return cr;
+	}
+
+	public final void xvalRun(ClusInductionAlgorithmType clss)
+			throws IOException, ClusException {
+		ClusErrorOutput errFileOutput = null;
+		if (getSettings().isWriteErrorFile()) {
+			errFileOutput = new ClusErrorOutput(m_Sett.getAppName() + ".err",
+					m_Schema, m_Sett);
+			errFileOutput.writeHeader();
+		}
+		PredictionWriter testPredWriter = null;
+		if (getSettings().isWriteTestSetPredictions()) {
+			ClusStatistic target = getStatManager().createStatistic(
+					ClusAttrType.ATTR_USE_TARGET);
+			testPredWriter = new PredictionWriter(m_Sett.getAppName()
+					+ ".test.pred.arff", m_Sett, target);
+			testPredWriter.globalInitialize(m_Schema);
+		}
+		/* Perform cross-validation */
+		ClusOutput output = new ClusOutput(m_Sett.getAppName() + ".xval",
+				m_Schema, m_Sett);
+		output.writeHeader();
+		XValMainSelection sel = getXValSelection();
+		ClusModelCollectionIO io = new ClusModelCollectionIO();
+		ClusEnsemblePredictionWriter ens_pred = null;
+		if (getSettings().shouldWritePredictionsFromEnsemble())
+			ens_pred = new ClusEnsemblePredictionWriter(getStatManager().getSettings().getAppName()+".ens.xval.preds", getStatManager().getSchema(), getStatManager().getSettings());
+		
+		for (int fold = 0; fold < sel.getNbFolds(); fold++) {
+			doOneFold(fold, clss, sel, io, testPredWriter, output,
+					errFileOutput, ens_pred);
+		}
+		if (getSettings().shouldWritePredictionsFromEnsemble()) ens_pred.closeWriter();
+		output.writeSummary(m_Summary);
+		output.close();
+		if (testPredWriter != null)
+			testPredWriter.close();
+		if (errFileOutput != null)
+			errFileOutput.close();
+		/* Cross-validation now includes a single run */
+		ClusRandom.initialize(m_Sett);
+		ClusRun run = singleRunMain(clss, m_Summary);
+		saveModels(run, io);
+		io.save(getSettings().getFileAbsolute(m_Sett.getAppName() + ".model"));
+	}
+
+	public final void baggingRun(ClusInductionAlgorithmType clss)
+			throws IOException, ClusException {
+		ClusOutput output = new ClusOutput(m_Sett.getAppName() + ".bag", m_Schema, m_Sett);
+		output.writeHeader();
+		ClusStatistic target = getStatManager().createStatistic(
+				ClusAttrType.ATTR_USE_TARGET);
+		PredictionWriter wrt = new PredictionWriter(m_Sett.getAppName()
+				+ ".test.pred.arff", m_Sett, target);
+		wrt.globalInitialize(m_Schema);
+		int nbsets = m_Sett.getBaggingSets();
+		int nbrows = m_Data.getNbRows();
+		for (int i = 0; i < nbsets; i++) {
+			BaggingSelection msel = new BaggingSelection(nbrows, getSettings().getEnsembleBagSize());
+			ClusRun cr = partitionData(msel, i + 1);
+			ClusModelInfo mi = cr.getModelInfo(ClusModel.PRUNED);
+			mi.addModelProcessor(ClusModelInfo.TEST_ERR, wrt);
+			induce(cr, clss); // Induce tree
+			calcError(cr, m_Summary, null); // Calc error
+			if (m_Sett.isOutputFoldModels())
+				output.writeOutput(cr, false); // Write output to file
+		}
+		wrt.close();
+		output.writeSummary(m_Summary);
+		output.close();
+	}
+
+	/*
+	 * clss is the object on which the induce methode is called :in our case it
+	 * is a ClusDecisionTree
+	 *
+	 * Modify to have more than one model as an output !
+	 */
+	public final void exhaustiveRun(ClusInductionAlgorithmType clss)
+			throws IOException, ClusException {
+		ClusOutput output = new ClusOutput(m_Sett.getAppName() + ".all",
+				m_Schema, m_Sett);
+		output.writeHeader();
+		ClusRun cr = partitionData();
+		induce(cr, clss); // Induce model
+		output.writeOutput(cr, false); // Write output to file
+		output.writeSummary(m_Summary);
+		output.close();
 	}
 
 	private class MyClusInitializer implements ClusSchemaInitializer {
 
 		public void initSchema(ClusSchema schema) throws ClusException, IOException {
+			if (getSettings().getHeuristic() == Settings.HEURISTIC_SSPD) {
+				schema.addAttrType(new IntegerAttrType("SSPD"));
+			}
 			schema.setTarget(new IntervalCollection(m_Sett.getTarget()));
 			schema.setDisabled(new IntervalCollection(m_Sett.getDisabled()));
 			schema.setClustering(new IntervalCollection(m_Sett.getClustering()));
@@ -1032,6 +1577,10 @@ public class Clus implements CMDLineArgsProvider {
 		iter.close();
 	}
 
+	public void setFolds(int folds) {
+		m_Sett.setXValFolds(folds);
+	}
+
 	public void showDebug() {
 		m_Schema.showDebug();
 	}
@@ -1071,13 +1620,13 @@ public class Clus implements CMDLineArgsProvider {
 				System.out.println();
 				System.out.println("Expected main argument");
 				System.exit(0);
-			}			
-			if (cargs.allOK()) {				
+			}
+			if (cargs.allOK()) {
 				sett.setDate(new Date());
 				sett.setAppName(cargs.getMainArg(0));
 				clus.initSettings(cargs);
 				ClusInductionAlgorithmType clss = null;
-				
+
 				/**
 				 * There are two groups of command line parameters of type
 				 * -<parameter>. From both of them at most one can be used. The
@@ -1090,7 +1639,18 @@ public class Clus implements CMDLineArgsProvider {
 				 * TODO There should be a command line help for these. For
 				 * example with -help.
 				 */
-				if (cargs.hasOption("weka")) {
+				if (cargs.hasOption("knn")) {
+					clus.getSettings().setSectionKNNEnabled(true);
+					clus.getSettings().setSectionTreeEnabled(false);
+					clss = new KNNClassifier(clus);
+				} else if (cargs.hasOption("knnTree")) { // new
+					clus.getSettings().setSectionKNNTEnabled(true);
+					clss = new KNNTreeClassifier(clus);
+				} else if (cargs.hasOption("rules")) {
+					clus.getSettings().setSectionBeamEnabled(true);
+					clus.getSettings().setSectionRulesEnabled(true);
+					clss = new ClusRuleClassifier(clus);
+				} else if (cargs.hasOption("weka")) {
 					// clss = new ClusWekaClassifier(clus,
 					// cargs.getOptionValue("weka"));
 				} else if (cargs.hasOption("tuneftest")) {
@@ -1099,15 +1659,34 @@ public class Clus implements CMDLineArgsProvider {
 				} else if (cargs.hasOption("tunesize")) {
 					clss = new ClusDecisionTree(clus);
 					clss = new CDTuneSizeConstrPruning(clss);
+				} else if (cargs.hasOption("beam")) {
+					clus.getSettings().setSectionBeamEnabled(true);
+					clss = sett.isFastBS() ? new ClusFastBeamSearch(clus)
+							: new ClusBeamSearch(clus);
+				} else if (cargs.hasOption("exhaustive")) {
+					// new part added by elisa 1/08/2006
+					clus.getSettings().setSectionExhaustiveEnabled(true);
+					clss = new ClusExhaustiveDFSearch(clus);
+				} else if (cargs.hasOption("sit")) {
+					// new part by beau
+					clus.getSettings().setSectionSITEnabled(true);
+					clss = new ClusDecisionTree(clus);
+					clss = new ClusSITDecisionTree(clss);
+				} else if (cargs.hasOption("forest")) {
+					sett.setEnsembleMode(true);
+					clss = new ClusEnsembleClassifier(clus);
+					if (sett.getFTestArray().isVector())
+						clss = new CDTTuneFTest(clss, sett.getFTestArray()
+								.getDoubleVector());
 				} else {
 					clss = new ClusDecisionTree(clus);
 					if (sett.getFTestArray().isVector())
 						clss = new CDTTuneFTest(clss, sett.getFTestArray()
 								.getDoubleVector());
-				}				
-				if (cargs.hasOption("xml")) {					
-					clus.getSettings().setOutputXMLModel(true);							
+                                        if(sett.getIsPBCT())
+                                                clss = new ClusPBCTDecisionTree(clus);
 				}
+
 				/**
 				 * The second group of command line parameters is for
 				 * miscellaneous action. The options are corrmatrix, info,
@@ -1116,9 +1695,54 @@ public class Clus implements CMDLineArgsProvider {
 				 * (originally bagging, may not be used) show, gui, tseries TODO
 				 * What do these mean?
 				 */
-				clus.initialize(cargs, clss);					
-				clus.singleRun(clss);
-				
+				if (cargs.hasOption("corrmatrix")) {
+					clus.initialize(cargs, clss);
+					CorrelationMatrixComputer cmp = new CorrelationMatrixComputer();
+					cmp.compute((RowData) clus.m_Data);
+					cmp.printMatrixTeX();
+				} else if (cargs.hasOption("info")) {
+					clus.initialize(cargs, clss);
+					clus.showInfo();
+				} else if (cargs.hasOption("writetargets")) {
+					clus.initialize(cargs, clss);
+					clus.writeTargets();
+				} else if (cargs.hasOption("out2model")) {
+					clus.initialize(cargs, clss);
+					clus.out2model(cargs.getOptionValue("out2model"));
+				} else if (cargs.hasOption("test")) {
+					clus.initialize(cargs, clss);
+					clus.testModel(cargs.getOptionValue("test"));
+				} else if (cargs.hasOption("normalize")) {
+					clus.initialize(cargs, clss);
+					clus.normalizeDataAndWriteToFile();
+				} else if (cargs.hasOption("debug")) {
+					clus.initialize(cargs, clss);
+					clus.showDebug();
+				} else if (cargs.hasOption("xval")) { // cross validation
+					clus.isxval = true;
+					clus.initialize(cargs, clss);
+					clus.xvalRun(clss);
+				} else if (cargs.hasOption("fold")) {
+					clus.isxval = true;
+					clus.initialize(cargs, clss);
+					clus.oneFoldRun(clss, cargs.getOptionInteger("fold"));
+				} else if (cargs.hasOption("bag")) {
+					clus.isxval = true;
+					clus.initialize(cargs, clss);
+					clus.baggingRun(clss);
+				} else if (cargs.hasOption("show")) {
+					// clus.showModel(clus.getAppName());
+					clus.showTree(clus.getAppName());
+				} else if (cargs.hasOption("gui")) {
+					clus.gui(cargs.getMainArg(0));
+				} else if (cargs.hasOption("tseries")) {
+					clus.getSettings().setSectionTimeSeriesEnabled(true);
+					clus.initialize(cargs, clss);
+					clus.singleRun(clss);
+				} else {
+					clus.initialize(cargs, clss);
+					clus.singleRun(clss);
+				}
 			}
 			if (Debug.debug == 1)
 				ClusStat.show();
@@ -1135,109 +1759,9 @@ public class Clus implements CMDLineArgsProvider {
 		} catch (IOException e) {
 			System.err.println();
 			System.err.println("IO Error: " + e);
+		} catch (ClassNotFoundException e) {
+			System.err.println();
+			System.err.println("Class not found" + e);
 		}
 	}
-        
-        
-        // ********************************
-        //PBCT
-        public final ClusRun partitionData(ClusData data, ClusData secondData, ClusSelection sel,
-			boolean testfile, boolean writetest, ClusSummary summary, int idx)
-			throws IOException, ClusException {
-		// cloning the data is done in partitionDataBasic()
-		String test_fname = m_Sett.getAppName();
-		ClusRun cr = partitionDataBasic(data, secondData, sel, summary, idx);
-		boolean hasMissing = m_Schema.hasMissing();
-		if (testfile) {
-			test_fname = m_Sett.getTestFile();
-			MyClusInitializer init = new MyClusInitializer();
-			TupleIterator iter = new DiskTupleIterator(test_fname, init,
-					getPreprocs(true), m_Sett);
-			iter.setShouldAttach(true);
-			cr.setTestSet(iter);
-		}
-		if (writetest) {
-			if (m_Sett.isWriteModelIDPredictions()) {
-				ClusModelInfo mi = cr.addModelInfo(ClusModel.ORIGINAL);
-				String ts_name = m_Sett.getAppNameWithSuffix() + ".test.id";
-				mi.addModelProcessor(ClusModelInfo.TEST_ERR, new NodeIDWriter(
-						ts_name, hasMissing, m_Sett));
-			}
-			if (m_Sett.isWriteTestSetPredictions()) {
-				ClusModelInfo allmi = cr.getAllModelsMI();
-				String ts_name = m_Sett.getAppNameWithSuffix()
-						+ ".test.pred.arff";
-				allmi
-						.addModelProcessor(ClusModelInfo.TEST_ERR,
-								new PredictionWriter(ts_name, m_Sett,
-										getStatManager().createStatistic(
-												ClusAttrType.ATTR_USE_TARGET)));
-			}
-		}
-		if (m_Sett.isWriteTrainSetPredictions()) {
-			ClusModelInfo allmi = cr.getAllModelsMI();
-			String tr_name = m_Sett.getAppNameWithSuffix() + ".train." + idx
-					+ ".pred.arff";
-			allmi.addModelProcessor(ClusModelInfo.TRAIN_ERR,
-					new PredictionWriter(tr_name, m_Sett, getStatManager()
-							.createStatistic(ClusAttrType.ATTR_USE_TARGET)));
-		}
-		if (m_Sett.isWriteModelIDPredictions()) {
-			ClusModelInfo mi = cr.addModelInfo(ClusModel.ORIGINAL);
-			String id_tr_name = m_Sett.getAppNameWithSuffix() + ".train." + idx
-					+ ".id";
-			mi.addModelProcessor(ClusModelInfo.TRAIN_ERR,
-					new NodeExampleCollector(id_tr_name, hasMissing, m_Sett));
-		}
-		return cr;
-	}
-
-	public final ClusRun partitionDataBasic(ClusData data, ClusData secondData, ClusSelection sel,
-			ClusSummary summary, int idx) throws IOException, ClusException {
-		return partitionDataBasic(data, secondData, sel, null, summary, idx);
-	}
-
-	public final ClusRun partitionDataBasic(ClusData data, ClusData secondData, ClusSelection sel,
-			ClusData prunefile, ClusSummary summary, int idx)
-			throws IOException, ClusException {
-		ClusRun cr = new ClusRun(data.cloneData(), secondData.cloneData(), summary);
-		if (sel != null) {
-			if (sel.changesDistribution()) {
-				((RowData) cr.getTrainingSet()).update(sel);
-			} else {
-				ClusData val = cr.getTrainingSet().select(sel);
-				cr.setTestSet(((RowData) val).getIterator());
-			}
-		}
-		int pruning_max = m_Sett.getPruneSetMax();
-		double vsb = m_Sett.getPruneProportion();
-		if (vsb != 0.0) {
-			ClusData train = cr.getTrainingSet();
-			int nbtot = train.getNbRows();
-			int nbsel = (int) Math.round((double) vsb * nbtot);
-			if (nbsel > pruning_max)
-				nbsel = pruning_max;
-			RandomSelection prunesel = new RandomSelection(nbtot, nbsel);
-			cr.setPruneSet(train.select(prunesel), prunesel);
-			if (Settings.VERBOSE > 0)
-				System.out.println("Selecting pruning set: " + nbsel);
-		}
-		if (!m_Sett.isNullPruneFile()) {
-			String prset = m_Sett.getPruneFile();
-			if (prunefile != null) {
-				cr.setPruneSet(prunefile, null);
-			} else {
-				ClusData prune = loadDataFile(prset);
-				cr.setPruneSet(prune, null);
-				if (Settings.VERBOSE > 0)
-					System.out.println("Selecting pruning set: " + prset);
-			}
-		}
-		cr.setIndex(idx);
-		cr.copyTrainingData();
-		return cr;
-	}
-        // ********************************
-
-        
 }

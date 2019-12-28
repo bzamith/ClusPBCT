@@ -43,11 +43,6 @@ public class ClusRun extends ClusModelInfoList {
 	protected TupleIterator m_Test;
 	protected ClusSummary m_Summary;
 
-        // ********************************
-        //PBCT
-        protected ClusData m_SecondTrain;
-        // ********************************
-        
 	public ClusRun(ClusData train, ClusSummary summary) {
 		m_Index = 1;
 		m_Train = train;
@@ -69,19 +64,6 @@ public class ClusRun extends ClusModelInfoList {
 	public ClusStatManager getStatManager() {
 		return m_Summary.getStatManager();
 	}
-        
-        // ********************************
-        //PBCT
-        public ClusRun(ClusData train, ClusData secondTrain, ClusSummary summary){
-                m_Index = 1;
-                m_Train = train;
-                m_SecondTrain = secondTrain;
-                m_Summary = summary;
-        }
-        // ********************************
-
-        
-        
 
 /***************************************************************************
  * Getting to the summary
@@ -167,13 +149,6 @@ public class ClusRun extends ClusModelInfoList {
 	public final ClusSelection getTestSelection() {
 		return m_TestSel;
 	}
-        
-        // ********************************
-        //PBCT
-        public final ClusData getSecondTrainingSet(){
-                return m_SecondTrain;
-        }
-        // ********************************
 
 /***************************************************************************
  * Test set

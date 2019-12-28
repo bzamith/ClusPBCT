@@ -31,6 +31,7 @@ import clus.data.type.*;
 import clus.model.*;
 import clus.model.test.*;
 import clus.statistic.*;
+import clus.ext.ensembles.*;
 import clus.heuristic.*;
 
 import java.io.*;
@@ -79,7 +80,28 @@ public class DepthFirstInduce extends ClusInductionAlgorithm {
 	public ClusAttrType[] getDescriptiveAttributes() {
 		ClusSchema schema = getSchema();
 		Settings sett = getSettings();
-		return schema.getDescriptiveAttributes();
+		if (!sett.isEnsembleMode()) {
+			return schema.getDescriptiveAttributes();
+		} else {
+			switch (sett.getEnsembleMethod()) {
+			case Settings.ENSEMBLE_BAGGING:
+				return schema.getDescriptiveAttributes();
+			case Settings.ENSEMBLE_RFOREST:
+				ClusAttrType[] attrsAll = schema.getDescriptiveAttributes();
+				ClusEnsembleInduce.setRandomSubspaces(attrsAll, schema.getSettings().getNbRandomAttrSelected());
+				return ClusEnsembleInduce.getRandomSubspaces();
+			case Settings.ENSEMBLE_RSUBSPACES:
+				return ClusEnsembleInduce.getRandomSubspaces();
+			case Settings.ENSEMBLE_BAGSUBSPACES:
+				return ClusEnsembleInduce.getRandomSubspaces();
+			case Settings.ENSEMBLE_NOBAGRFOREST:
+				ClusAttrType[] attrsAll1 = schema.getDescriptiveAttributes();
+				ClusEnsembleInduce.setRandomSubspaces(attrsAll1, schema.getSettings().getNbRandomAttrSelected());
+				return ClusEnsembleInduce.getRandomSubspaces();
+			default:
+				return schema.getDescriptiveAttributes();
+			}
+		}
 	}
 
 	
@@ -136,6 +158,7 @@ public class DepthFirstInduce extends ClusInductionAlgorithm {
 				
 				}
 			}
+		node.setAlternatives(v);
 //		if (removed) System.out.println("Alternative splits were possible");
 	}
 
@@ -238,7 +261,7 @@ public class DepthFirstInduce extends ClusInductionAlgorithm {
 
 	public ClusNode induceSingleUnpruned(RowData data) throws ClusException, IOException {
 		m_Root = null;
-      		// Begin of induction process
+		// Begin of induction process
 		int nbr = 0;
 		while (true) {
 			nbr++;

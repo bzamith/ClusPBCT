@@ -22,13 +22,8 @@
 
 package clus.error.multiscore;
 
-import clus.algo.tdidt.ClusNodePBCT;
 import java.text.*;
 import java.util.ArrayList;
-
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 import clus.main.Settings;
 import clus.statistic.*;
@@ -73,28 +68,6 @@ public class MultiScoreStat extends ClusStatistic {
 		buf.append("]");
 		return buf.toString();
 
-	}
-	
-	@Override
-	public Element getPredictElement(Document doc) {
-		Element stats = doc.createElement("MultiScoreStat");
-		NumberFormat fr = ClusFormat.SIX_AFTER_DOT;
-		Attr examples = doc.createAttribute("examples");
-		examples.setValue(fr.format(m_SumWeight));
-		stats.setAttributeNode(examples);
-		for (int i = 0; i < m_NbTarget; i++) {
-			Element target = doc.createElement("Target");
-			stats.appendChild(target);
-			
-			Attr score = doc.createAttribute("score");
-			target.setAttributeNode(score);
-			score.setValue((1-m_Score[i])+"");
-			
-			Attr mean = doc.createAttribute("mean");
-			target.setAttributeNode(mean);
-			mean.setValue((m_MeanValues[i])+"");
-		}
-		return stats;
 	}
 
 	public String getPredictedClassName(int idx) {
@@ -156,49 +129,4 @@ public class MultiScoreStat extends ClusStatistic {
 
 	public void updateWeighted(SparseDataTuple tuple, int idx) {
 	}
-
-    @Override
-    public double getSumValues(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double getSumWeights(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public double getSumSqValues(int i) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void includeElements(ClusNodePBCT node) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void includeElements(ClusNodePBCT node, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public boolean getFilled(int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(double value, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(ClusNodePBCT node) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void calcMean(ClusNodePBCT node, int index) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
 }

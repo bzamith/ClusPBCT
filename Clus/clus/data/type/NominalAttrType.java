@@ -32,6 +32,8 @@ import clus.data.cols.*;
 import clus.data.cols.attribute.*;
 import clus.data.io.ClusReader;
 
+import clus.algo.kNN.NominalStatistic;
+
 /**
  * Attribute of nominal value.
  */
@@ -230,4 +232,15 @@ public class NominalAttrType extends ClusAttrType {
 			return true;
 		}
 	}
+
+	// new for knn
+
+	public void setStatistic(NominalStatistic stat){
+		$stat = stat;
+	}
+	public NominalStatistic getStatistic(){
+		return $stat;
+	}
+
+	private NominalStatistic $stat;
 }

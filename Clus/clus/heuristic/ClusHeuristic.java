@@ -22,7 +22,6 @@
 
 package clus.heuristic;
 
-import clus.data.attweights.ClusAttributeWeights;
 import clus.statistic.*;
 import clus.data.rows.*;
 
@@ -97,10 +96,4 @@ public abstract class ClusHeuristic {
 	public boolean isAcceptable(ClusStatistic c_tstat, ClusStatistic c_pstat, ClusStatistic missing) {
 		return true;
 	}
-        
-        // ********************************
-        //PBCT: So we can set the weights manually
-        public void setClusteringWeights(ClusAttributeWeights clust){}
-        // ********************************
-        
 }

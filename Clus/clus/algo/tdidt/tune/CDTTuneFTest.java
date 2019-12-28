@@ -44,7 +44,6 @@ import clus.data.type.NumericAttrType;
 import clus.error.Accuracy;
 import clus.error.ClusError;
 import clus.error.ClusErrorList;
-import clus.error.MultiLabelError;
 import clus.error.RMSError;
 import clus.ext.hierarchical.HierClassWiseAccuracy;
 import clus.ext.hierarchical.HierErrorMeasures;
@@ -69,8 +68,8 @@ public class CDTTuneFTest extends ClusDecisionTree {
 		m_FTests = ftests;
 	}
 
-	public ClusInductionAlgorithm createInduce(ClusSchema schema, ClusSchema secondSchema, Settings sett, CMDLineArgs cargs) throws ClusException, IOException {
-		return m_Class.createInduce(schema, secondSchema, sett, cargs);
+	public ClusInductionAlgorithm createInduce(ClusSchema schema, Settings sett, CMDLineArgs cargs) throws ClusException, IOException {
+		return m_Class.createInduce(schema, sett, cargs);
 	}
 
 	public void printInfo() {
@@ -201,96 +200,16 @@ public class CDTTuneFTest extends ClusDecisionTree {
 			// Find optimal F-test value
 			RowData valid = (RowData)cr.getPruneSet();
 			RowData train = (RowData)cr.getTrainingSet();
-                        if(cr.getSecondTrainingSet()!=null){
-                            findBestCombinationPBCT(valid);
-                        }
-                        else{
-                            System.out.println();
-                            findBestFTest(train, valid);
-                            System.out.println();
-                            // Induce final model
-                            cr.combineTrainAndValidSets();
-                            ClusRandom.initialize(getSettings());
-                            m_Class.induceAll(cr);
-                        }
+			findBestFTest(train, valid);
+			System.out.println();
+			// Induce final model
+			cr.combineTrainAndValidSets();
+			ClusRandom.initialize(getSettings());
+			m_Class.induceAll(cr);
 		} catch (ClusException e) {
 		    System.err.println("Error: "+e);
 		} catch (IOException e) {
 		    System.err.println("IO Error: "+e);
 		}
 	}
-        
-        
-        public double[] doParamXValPBCT(RowData pruneset) throws ClusException, IOException {
-		int prevVerb = Settings.enableVerbose(0);
-		ClusStatManager mgr = getStatManager();
-		ClusSummary summ = new ClusSummary();
-		summ.setStatManager(getStatManager());
-		summ.addModelInfo(ClusModel.ORIGINAL).setTestError(createTuneErrorPBCT(mgr));
-		ClusRandom.initialize(getSettings());
-		double avgSize = 0.0;
-		ClusRun cr = new ClusRun(getClus().getData().cloneData(), getClus().getSecondData().cloneData(), summ);
-		ClusModel model = m_Class.induceSingleUnpruned(cr);
-		avgSize = model.getModelSize();
-		cr.addModelInfo(ClusModel.ORIGINAL).setModel(model);
-		cr.addModelInfo(ClusModel.ORIGINAL).setTestError(createTuneErrorPBCT(mgr));
-		m_Clus.calcError(pruneset.getIterator(), ClusModelInfo.TEST_ERR, cr, null);
-		summ.addSummary(cr);
-		
-                
-                
-		ClusModelInfo mi = summ.getModelInfo(ClusModel.ORIGINAL);
-		Settings.enableVerbose(prevVerb);
-		ClusError err = mi.getTestError().getFirstError();
-                double[] saida = {err.getModelError(0),err.getModelError(1),err.getModelError(2),err.getModelError(3)};
-                return saida;
-	}
-        
-         public ClusErrorList createTuneErrorPBCT(ClusStatManager mgr) {
-		ClusErrorList parent = new ClusErrorList();
-		NumericAttrType[] num = mgr.getSchema().getNumericAttrUse(ClusAttrType.ATTR_USE_TARGET);
-		NominalAttrType[] nom = mgr.getSchema().getNominalAttrUse(ClusAttrType.ATTR_USE_TARGET);
-		if (nom.length != 0) {
-			parent.addError(new Accuracy(parent, nom));
-		}
-		if (num.length != 0) {
-			parent.addError(new MultiLabelError(parent, num, getSettings().getCompatibility()));
-                        //parent.addError(new RMSError(parent, num));
-		}
-		return parent;
-	}
-        
-        public void findBestCombinationPBCT(RowData pruneset) throws ClusException, IOException {
-		int runs = 1;
-                int[] best_FTestValue = {0,0,0,0};
-                int[] best_FTestWeighting = {0,0,0,0};
-                int[] best_MinimalWeight = {0,0,0,0};
-		boolean low = createTuneErrorPBCT(getStatManager()).getFirstError().shouldBeLow();
-		double[] best_error = {Double.NEGATIVE_INFINITY,Double.NEGATIVE_INFINITY,Double.NEGATIVE_INFINITY,Double.NEGATIVE_INFINITY};
-		for (int i = 0; i <m_FTests.length; i++) {
-                    getSettings().setFTest(m_FTests[i]);
-                    System.out.println("Try ("+runs+") F-test value = "+getSettings().getFTest());
-                    double[] err = doParamXValPBCT(pruneset);
-                    runs++;
-                    for(int j=0; j<4; j++){
-                        PrintWriter wrt = new PrintWriter(new OutputStreamWriter(System.out));
-                        wrt.print(getSettings().HIERMEASURES[j]+" => "+err[j]);
-                        wrt.flush();
-                        if (err[j] >= best_error[j]) {
-                            best_error[j] = err[j];
-                            best_FTestValue[j] = i;
-                            System.out.println(" *");
-                        } else {
-                            System.out.println();
-                        }
-                   }
-                   System.out.println();
-                }
-		for(int i=0; i<4; i++){
-                    System.out.println(m_FTests[best_FTestValue[i]]);
-                    
-                }
-                
-                System.out.println(getSettings().getSecondDataFile());
-    } 
 }

@@ -135,6 +135,9 @@ public class ARFFFile {
 			StringAttrType key = new StringAttrType(aname);
 			schema.addAttrType(key);
 			key.setStatus(ClusAttrType.STATUS_KEY);
+		} else if (uptype.equals("TIMESERIES")) {
+			TimeSeriesAttrType tsat = new TimeSeriesAttrType(aname);
+			schema.addAttrType(tsat);
 		} else {
 			if (uptype.equals("BINARY")) atype = "{1,0}";
 			int tlen = atype.length();
@@ -185,27 +188,6 @@ public class ARFFFile {
 		for (int j = 0; j < data.getNbRows(); j++) {
 			DataTuple tuple = data.getTuple(j);
 			tuple.writeTuple(wrt);
-		}
-		wrt.close();
-	}
-	
-	/*
-	 * Writes the arff file where each tuple is replicated by its weight. This is used for printing out the individual
-	 * arff files in a bagging scheme (with the above procedure the number of tuples per file is smaller than the 
-	 * training set size).
-	 */
-	public static void writeArffWeighted(String fname, RowData data) throws IOException, ClusException {
-		PrintWriter wrt = new PrintWriter(new OutputStreamWriter(new FileOutputStream(fname)));
-		ClusSchema schema = data.getSchema();
-		writeArffHeader(wrt, schema);
-		wrt.println("@DATA");
-		for (int j = 0; j < data.getNbRows(); j++) {
-			DataTuple tuple = data.getTuple(j);
-			double weight = tuple.getWeight();
-			while (weight > 0) {
-				tuple.writeTuple(wrt);
-				weight--;
-			}
 		}
 		wrt.close();
 	}

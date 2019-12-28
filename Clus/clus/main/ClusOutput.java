@@ -26,29 +26,16 @@ import java.io.*;
 import java.text.*;
 import java.util.*;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
-
 import jeans.resource.ResourceInfo;
 import jeans.util.*;
+
 import clus.model.ClusModel;
 import clus.model.ClusModelInfo;
 import clus.statistic.StatisticPrintInfo;
 import clus.util.*;
 import clus.data.type.*;
 import clus.error.*;
+import clus.ext.ensembles.ClusOOBErrorEstimate;
 import clus.data.rows.*;
 import clus.Clus;
 
@@ -145,7 +132,7 @@ public class ClusOutput {
 		m_Writer.println("FTValue (FTest): "+m_Sett.getFTest());
 		double tsec = (double)cr.getInductionTime()/1000.0;
 		double tpru = (double)cr.getPruneTime()/1000.0;
-		// Prepare models for printing if required		
+		// Prepare models for printing if required
 		for (int i = 0; i < cr.getNbModels(); i++) {
 			ClusModelInfo mi = cr.getModelInfo(i);
 			if (mi != null) {
@@ -159,8 +146,9 @@ public class ClusOutput {
 			}
 		}
 		// Compute statistics
-                String cpu = ResourceInfo.isLibLoaded() ? " (CPU)" : "";
+	    String cpu = ResourceInfo.isLibLoaded() ? " (CPU)" : "";
 		m_Writer.println("Induction Time: "+ClusFormat.FOUR_AFTER_DOT.format(tsec)+" sec"+cpu);
+		m_Writer.println("Pruning Time: "+ClusFormat.FOUR_AFTER_DOT.format(tpru)+" sec"+cpu);
 		m_Writer.println("Model information");
 		for (int i = 0; i < cr.getNbModels(); i++) {
 			ClusModelInfo mi = cr.getModelInfo(i);
@@ -187,7 +175,8 @@ public class ClusOutput {
 			if (outputtrain) {
 				ClusErrorList tr_err = cr.getTrainError();
 				if (tr_err != null) {
-					m_Writer.println("Training error");
+					if (ClusOOBErrorEstimate.isOOBCalculation())	m_Writer.println("Out-Of-Bag Estimate of Error");
+					else m_Writer.println("Training error");
 					m_Writer.println("--------------");
 					m_Writer.println();
 					tr_err.showError(cr, ClusModelInfo.TRAIN_ERR, bName+".train", m_Writer);
@@ -227,12 +216,38 @@ public class ClusOutput {
 					RowData pex = (RowData)cr.getTrainingSet();
 					System.out.println(te_err);
 					if (te_err != null) pex = (RowData)cr.getTestSet();
-					root.printModelAndExamples(m_Writer, info, pex);					
+					root.printModelAndExamples(m_Writer, info, pex);
 				} else {
-					root.printModel(m_Writer, info);					
+					root.printModel(m_Writer, info);
 				}
 				m_Writer.println();
+				if (getSettings().isOutputPythonModel()) {
+					if (getSettings().isEnsembleMode() && (i == ClusModel.ORIGINAL)){
+						root.printModelToPythonScript(m_Writer);//root is a forest
+					} else {
+						// use following lines for getting tree as Python function
+						m_Writer.print("def clus_tree( ");
+						ClusAttrType[] cat = ClusSchema.vectorToAttrArray(m_Schema.collectAttributes(ClusAttrType.ATTR_USE_DESCRIPTIVE, ClusAttrType.THIS_TYPE));
+						for (int ii=0;ii<cat.length-1;ii++){
+							m_Writer.print(cat[ii].getName()+",");
+						}
+						m_Writer.println(cat[cat.length-1].getName()+" ):");
+						root.printModelToPythonScript(m_Writer);
+						m_Writer.println();
+					}
+				}
 			}
+		}
+		if (getSettings().isOutputDatabaseQueries()) {
+			int starttree = getSettings().getStartTreeCpt();
+			int startitem = getSettings().getStartItemCpt();
+			ClusModel root = (ClusModel)models.get(cr.getNbModels()-1);
+			// use the following lines for creating a SQL file that will put the tree into a database
+			String out_database_name =  m_Sett2.getAppName()+".txt";
+			PrintWriter database_writer = m_Sett2.getFileAbsoluteWriter(out_database_name);
+			root.printModelToQuery(database_writer,cr,starttree,startitem,getSettings().isExhaustiveSearch());
+			database_writer.close();
+			System.out.println("The queries are in "+out_database_name);
 		}
 		m_Writer.flush();
 	}
