@@ -1,0 +1,25 @@
+@RELATION SecondData
+
+@ATTRIBUTE 02 numeric
+@ATTRIBUTE 01 numeric
+@ATTRIBUTE Protein0 numeric
+@ATTRIBUTE Protein1 numeric
+@ATTRIBUTE Protein2 numeric
+@ATTRIBUTE Protein3 numeric
+@ATTRIBUTE Protein4 numeric
+@ATTRIBUTE Protein5 numeric
+@ATTRIBUTE Protein6 numeric
+@ATTRIBUTE Protein7 numeric
+@ATTRIBUTE Protein8 numeric
+@ATTRIBUTE Protein9 numeric
+@ATTRIBUTE Protein10 numeric
+@ATTRIBUTE Protein11 numeric
+
+@DATA
+0.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.0,1.0,1.0,1.0
+0.0,1.0,1.0,1.0,0.0,1.0,1.0,1.0,1.0,0.0,0.0,1.0,1.0,0.0
+0.0,1.0,1.0,1.0,0.0,0.0,1.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0
+1.0,0.0,1.0,1.0,1.0,1.0,0.0,1.0,0.0,1.0,1.0,0.0,0.0,0.0
+1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0,0.0
+1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+1.0,0.0,1.0,0.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

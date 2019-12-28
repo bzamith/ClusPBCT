@@ -1,0 +1,26 @@
+@RELATION 'derisi0.names'
+
+@ATTRIBUTE g1                                      numeric
+@ATTRIBUTE g1_bkg                                  numeric
+@ATTRIBUTE r1                                      numeric
+@ATTRIBUTE 01 numeric
+@ATTRIBUTE 01/01 numeric
+@ATTRIBUTE 01/01/03 numeric
+@ATTRIBUTE 02 numeric
+@ATTRIBUTE 02/01 numeric
+@ATTRIBUTE 02/01/01 numeric
+@ATTRIBUTE 02/04 numeric
+
+@DATA
+4169,2629,2373,1,1,1,1,0,0,1
+5499,2355,5121,1,1,1,1,0,0,0
+4867,2537,3586,1,0,0,1,1,0,1
+5632,2193,5376,1,1,0,1,0,0,1
+11690,2101,9273,1,1,1,0,0,0,0
+6067,1998,6049,1,1,0,1,0,0,0
+3628,1885,2905,1,1,1,0,0,0,0
+4907,1865,3863,1,0,0,1,1,0,0
+3786,1957,2888,0,0,0,1,1,0,0
+11523,2666,8673,1,1,0,0,0,0,0
+3994,1827,3024,1,1,0,0,0,0,0
+3676,1679,2956,1,0,0,0,0,0,0
